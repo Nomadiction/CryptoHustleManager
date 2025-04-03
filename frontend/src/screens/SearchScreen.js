@@ -1,87 +1,59 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TextInput,
-  TouchableOpacity,
-} from "react-native";
+import React, { useState, useCallback, useEffect, useRef } from "react";
+import { View, TextInput, StyleSheet, FlatList, Animated, Text, Alert } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import CryptoCard from "../components/CryptoCard";
 import icons from "../../data/icons";
 
-// Импортируем компоненты и хуки из reanimated и gesture-handler
-import Animated, {
-  useSharedValue,
-  useAnimatedGestureHandler,
-  useAnimatedStyle,
-  withTiming,
-  runOnJS,
-} from "react-native-reanimated";
-import { PanGestureHandler } from "react-native-gesture-handler";
-
-const API_URL = "http://192.168.8.56:5000/api/crypto/prices";
+const API_URL = process.env.API_URL || "http://192.168.8.56:5000/api/crypto/prices";
 
 const SearchScreen = () => {
   const [cryptoData, setCryptoData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [favorites, setFavorites] = useState([]);
+  const [error, setError] = useState(null);
+  const [favorites, setFavorites] = useState({});
   const scrollY = useRef(new Animated.Value(0)).current;
-
-  // Функция сохранения избранного в AsyncStorage
-  const saveFavorites = async (favList) => {
-    try {
-      await AsyncStorage.setItem("favorites", JSON.stringify(favList));
-    } catch (error) {
-      console.error("Ошибка сохранения избранного:", error);
-    }
-  };
 
   // Функция загрузки избранного из AsyncStorage
   const loadFavorites = async () => {
     try {
-      const favs = await AsyncStorage.getItem("favorites");
-      if (favs !== null) {
-        setFavorites(JSON.parse(favs));
-      }
+      const storedFavorites = await AsyncStorage.getItem("favorites");
+      setFavorites(storedFavorites ? JSON.parse(storedFavorites) : {});
     } catch (error) {
       console.error("Ошибка загрузки избранного:", error);
     }
   };
 
-  // Функция для переключения избранного
-  const toggleFavorite = async (symbol) => {
-    const lowerSymbol = symbol.toLowerCase();
-    let updatedFavorites;
-    if (favorites.includes(lowerSymbol)) {
-      updatedFavorites = favorites.filter((item) => item !== lowerSymbol);
-    } else {
-      updatedFavorites = [...favorites, lowerSymbol];
+  // Функция сохранения избранного в AsyncStorage
+  const saveFavorites = async (newFavorites) => {
+    try {
+      await AsyncStorage.setItem("favorites", JSON.stringify(newFavorites));
+    } catch (error) {
+      console.error("Ошибка сохранения избранного:", error);
     }
-    setFavorites(updatedFavorites);
-    await saveFavorites(updatedFavorites);
   };
 
-  // Функция загрузки данных
+  // Функция получения данных с API
   const fetchData = useCallback(async () => {
     try {
       const response = await axios.get(API_URL);
       if (!response.data || Object.keys(response.data).length === 0) {
         console.warn("⚠️ API вернул пустые данные");
+        setError("API вернул пустые данные");
         return;
       }
       const formattedData = Object.entries(response.data);
       setCryptoData(formattedData);
-      setFilteredData(formattedData);
+      setError(null);
     } catch (error) {
       console.error("❌ Ошибка загрузки данных:", error);
+      setError("Ошибка загрузки данных");
+      Alert.alert("Ошибка", "Не удалось загрузить данные о криптовалютах");
     }
   }, []);
 
-  // Загрузка данных и избранного при монтировании
+  // Загрузка данных и избранного при первом рендере
   useEffect(() => {
     fetchData();
     loadFavorites();
@@ -89,7 +61,6 @@ const SearchScreen = () => {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // Обновление при возврате на экран
   useFocusEffect(
     useCallback(() => {
       fetchData();
@@ -97,124 +68,80 @@ const SearchScreen = () => {
     }, [fetchData])
   );
 
-  // Фильтрация списка по вводу
+  // Фильтр данных при поиске
+  const getDisplayedData = useCallback(() => {
+    if (!searchQuery) return cryptoData;
+    return cryptoData.filter(([symbol]) =>
+      symbol.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [cryptoData, searchQuery]);
+
+  // Обработчик поиска
   const handleSearch = (text) => {
     setSearchQuery(text);
-    if (text) {
-      const filtered = cryptoData.filter(([symbol]) =>
-        symbol.toLowerCase().includes(text.toLowerCase())
-      );
-      setFilteredData(filtered);
-    } else {
-      setFilteredData(cryptoData);
-    }
   };
 
-  // Анимация скрытия строки поиска при прокрутке вниз
+  // Обработчик добавления/удаления из избранного
+  const handleToggleFavorite = async (symbol) => {
+    setFavorites((prev) => {
+      const updated = { ...prev };
+      if (updated[symbol]) {
+        delete updated[symbol];
+        console.log(`❌ Символ ${symbol} удален из избранных`);
+      } else {
+        updated[symbol] = true;
+        console.log(`⭐ Символ ${symbol} добавлен в избранные`);
+      }
+      saveFavorites(updated); // Сохранение обновленного списка избранного
+      return updated;
+    });
+  };
+
+  // Отрисовка каждой криптовалюты
+  const renderItem = ({ item }) => {
+    const [symbol, data] = item;
+    const IconComponent = icons[symbol.toLowerCase()] || icons["btc"];
+    return (
+      <CryptoCard
+        symbol={symbol}
+        price={data.price}
+        priceChangePercent={data.priceChangePercent}
+        IconComponent={IconComponent}
+        isFavorite={!!favorites[symbol]}
+        onToggleFavorite={() => handleToggleFavorite(symbol)}
+      />
+    );
+  };
+
   const searchBarOpacity = scrollY.interpolate({
     inputRange: [0, 50],
     outputRange: [1, 0],
     extrapolate: "clamp",
   });
 
-  // Функция рендера элементов списка с обработкой свайпа в верхней части карточки
-  const renderItem = ({ item }) => {
-    const [symbol, { price, priceChangePercent } = {}] = item;
-    const normalizedSymbol = symbol?.toLowerCase();
-    const IconComponent = icons[normalizedSymbol] || icons["btc"];
-    const isFavorite = favorites.includes(normalizedSymbol);
-
-    // Создаем shared value для отслеживания горизонтального смещения
-    const translateX = useSharedValue(0);
-
-    // Обработчик жеста свайпа
-    const gestureHandler = useAnimatedGestureHandler({
-      onActive: (event) => {
-        // Обновляем смещение; нас интересует свайп влево (отрицательное значение)
-        translateX.value = event.translationX;
-      },
-      onEnd: () => {
-        // Если свайп влево превышает порог, переключаем избранное
-        if (translateX.value < -50) {
-          runOnJS(toggleFavorite)(symbol);
-        }
-        // Возвращаем область в исходное положение
-        translateX.value = withTiming(0);
-      },
-    });
-
-    // Применяем анимированный стиль для области свайпа
-    const animatedStyle = useAnimatedStyle(() => ({
-      transform: [{ translateX: translateX.value }],
-    }));
-
-    return (
-      <View style={styles.card}>
-        {/* Область для свайпа в верхней части карточки */}
-        <PanGestureHandler onGestureEvent={gestureHandler}>
-          <Animated.View style={[styles.topSwipeArea, animatedStyle]}>
-            <Text style={styles.swipeHint}>Свайпните влево для избранного</Text>
-          </Animated.View>
-        </PanGestureHandler>
-
-        {/* Основное содержимое карточки */}
-        <View style={styles.iconContainer}>
-          {IconComponent ? <IconComponent width={40} height={40} /> : null}
-        </View>
-        <View style={styles.info}>
-          <Text style={styles.symbol}>{symbol?.toUpperCase()}</Text>
-          <Text style={styles.price}>
-            ${price ? price.toFixed(2) : "N/A"}
-          </Text>
-          <Text
-            style={[
-              styles.change,
-              priceChangePercent >= 0 ? styles.positive : styles.negative,
-            ]}
-          >
-            {priceChangePercent !== undefined
-              ? priceChangePercent.toFixed(2) + "%"
-              : "N/A"}
-          </Text>
-        </View>
-        <TouchableOpacity onPress={() => toggleFavorite(symbol)}>
-          <Text
-            style={[
-              styles.favoriteIcon,
-              { color: isFavorite ? "#ffd700" : "#fff" },
-            ]}
-          >
-            ★
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
-  };
-
   return (
     <View style={styles.container}>
-      {/* Анимированная строка поиска */}
-      <Animated.View
-        style={[styles.searchContainer, { opacity: searchBarOpacity }]}
-      >
+      <Animated.View style={[styles.searchContainer, { opacity: searchBarOpacity }]}>
         <TextInput
           style={styles.searchInput}
           placeholder="Поиск криптовалют..."
-          placeholderTextColor="#ccc"
+          placeholderTextColor="#6c6f93"
           value={searchQuery}
           onChangeText={handleSearch}
         />
       </Animated.View>
-
+      {error && <Text style={styles.errorText}>{error}</Text>}
       <FlatList
-        data={filteredData}
-        keyExtractor={(item) => item[0] || Math.random().toString()}
+        data={getDisplayedData()}
+        keyExtractor={(item) => item[0]}
         renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 120, marginTop: 40 }}
+        contentContainerStyle={styles.listContainer}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false }
         )}
+        showsVerticalScrollIndicator={false}
+        initialNumToRender={10}
       />
     </View>
   );
@@ -231,71 +158,34 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#1c3b70",
+    backgroundColor: "#1a1c2b",
     paddingHorizontal: 16,
     paddingVertical: 10,
     zIndex: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: "#2c305b",
   },
   searchInput: {
-    backgroundColor: "#2a4f8d",
-    color: "#fff",
+    backgroundColor: "#1a1c2b",
+    color: "#ffffff",
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 8,
+    borderRadius: 25,
     fontSize: 16,
+    borderWidth: 2,
+    borderColor: "#2c305b",
   },
-  card: {
-    flexDirection: "column",
-    backgroundColor: "#1c3b70",
-    borderRadius: 8,
-    marginVertical: 8,
-    marginHorizontal: 16,
-    overflow: "hidden",
+  listContainer: {
+    paddingTop: 70,
+    paddingBottom: 120,
+    paddingHorizontal: 8,
   },
-  topSwipeArea: {
-    height: 20,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  swipeHint: {
-    fontSize: 10,
-    color: "#ccc",
-  },
-  iconContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 15,
-  },
-  info: {
-    flex: 1,
-    marginLeft: 10,
-    paddingBottom: 15,
-  },
-  symbol: {
-    color: "#fff",
+  errorText: {
+    color: "#e03131",
+    textAlign: "center",
+    marginTop: 80,
     fontSize: 16,
-    fontWeight: "bold",
-  },
-  price: {
-    color: "#ffffff",
-    fontSize: 14,
-  },
-  change: {
-    fontSize: 14,
-  },
-  positive: {
-    color: "#00ff00",
-  },
-  negative: {
-    color: "#ff0000",
-  },
-  favoriteIcon: {
-    fontSize: 24,
-    paddingRight: 15,
-    alignSelf: "center",
   },
 });
 
 export default SearchScreen;
-
