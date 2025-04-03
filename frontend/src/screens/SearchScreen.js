@@ -1,9 +1,11 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { View, TextInput, StyleSheet, FlatList, Animated, TouchableOpacity, Text, Alert } from "react-native";
+import { View, TextInput, StyleSheet, FlatList, Animated, Text, Alert } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import axios from "axios";
 import CryptoCard from "../components/CryptoCard";
 import icons from "../../data/icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 const API_URL = process.env.API_URL || "http://192.168.8.56:5000/api/crypto/prices";
 
@@ -22,13 +24,11 @@ const SearchScreen = () => {
         setError("API вернул пустые данные");
         return;
       }
-      const formattedData = Object.entries(response.data);
-      setCryptoData(formattedData);
+      setCryptoData(Object.entries(response.data));
       setError(null);
     } catch (error) {
       console.error("❌ Ошибка загрузки данных:", error);
       setError("Ошибка загрузки данных");
-      // Можно использовать Alert или Toast для уведомления пользователя
       Alert.alert("Ошибка", "Не удалось загрузить данные о криптовалютах");
     }
   }, []);
@@ -60,15 +60,15 @@ const SearchScreen = () => {
     setFavorites((prev) => {
       const updated = { ...prev };
       if (updated[symbol]) {
-        delete updated[symbol]; // Удаляем, если уже есть
+        delete updated[symbol];
         console.log(`❌ Символ ${symbol} удален из избранных`);
       } else {
-        updated[symbol] = true; // Добавляем, если нет
+        updated[symbol] = true;
         console.log(`⭐ Символ ${symbol} добавлен в избранные`);
       }
       return updated;
     });
-    setCryptoData((prev) => [...prev]); 
+    setCryptoData((prev) => [...prev]); // Обновляем список, чтобы перерендерить
   };
 
   const renderItem = ({ item }) => {
@@ -94,16 +94,26 @@ const SearchScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Animated.View style={[styles.searchContainer, { opacity: searchBarOpacity }]}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Поиск криптовалют..."
-          placeholderTextColor="#6c6f93"
-          value={searchQuery}
-          onChangeText={handleSearch}
-        />
-      </Animated.View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      <LinearGradient colors={["#0d1b3d", "#162f5b"]} style={styles.searchContainer}>
+        <Animated.View style={[styles.searchBox, { opacity: searchBarOpacity }]}>
+          <MaterialCommunityIcons name="magnify" size={24} color="#ffffff" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Поиск криптовалют..."
+            placeholderTextColor="#AAB7C4"
+            value={searchQuery}
+            onChangeText={handleSearch}
+            clearButtonMode="always"
+          />
+        </Animated.View>
+      </LinearGradient>
+
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+
       <FlatList
         data={getDisplayedData()}
         keyExtractor={(item) => item[0]}
@@ -114,7 +124,6 @@ const SearchScreen = () => {
           { useNativeDriver: false }
         )}
         showsVerticalScrollIndicator={false}
-        // Дополнительные параметры для оптимизации
         initialNumToRender={10}
       />
     </View>
@@ -124,7 +133,7 @@ const SearchScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#112a57",
+    backgroundColor: "#0a1e44",
     paddingTop: 20,
   },
   searchContainer: {
@@ -132,32 +141,48 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#1a1c2b",
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    zIndex: 10,
+    paddingVertical: 12,
     borderBottomWidth: 2,
-    borderBottomColor: "#2c305b",
+    borderBottomColor: "#233567",
+    zIndex: 10,
+  },
+  searchBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1a2a4e",
+    borderRadius: 30,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  searchIcon: {
+    marginRight: 8,
   },
   searchInput: {
-    backgroundColor: "#1a1c2b",
+    flex: 1,
     color: "#ffffff",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 25,
     fontSize: 16,
-    borderWidth: 2,
-    borderColor: "#2c305b",
   },
   listContainer: {
-    paddingTop: 70,
+    paddingTop: 80,
     paddingBottom: 120,
     paddingHorizontal: 8,
   },
+  errorContainer: {
+    backgroundColor: "#ff4d4d",
+    padding: 10,
+    marginHorizontal: 16,
+    borderRadius: 6,
+    marginTop: 40,
+  },
   errorText: {
-    color: "#e03131",
+    color: "#ffffff",
     textAlign: "center",
-    marginTop: 80,
     fontSize: 16,
   },
 });
