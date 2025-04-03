@@ -2,14 +2,14 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Animated, PanResponder, View, Text, StyleSheet, Dimensions } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
-const MAX_DRAG_DISTANCE = 120; 
+const MAX_DRAG_DISTANCE = 120;
 const THRESHOLD_RATIO = 0.9; // 90% от максимального смещения
 const THRESHOLD = MAX_DRAG_DISTANCE * THRESHOLD_RATIO;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const CryptoCard = ({ symbol, price, priceChangePercent, IconComponent, isFavorite: propFavorite, onToggleFavorite }) => {
   const [isFavorite, setIsFavorite] = useState(propFavorite);
-  
+
   // Анимация свайпа
   const translateX = useRef(new Animated.Value(0)).current;
   const starScale = useRef(new Animated.Value(1)).current;
@@ -48,33 +48,36 @@ const CryptoCard = ({ symbol, price, priceChangePercent, IconComponent, isFavori
       onPanResponderRelease: (_, gestureState) => {
         const dx = Math.max(0, gestureState.dx);
         if (dx >= THRESHOLD) {
-          const newFavoriteState = !isFavorite;
-          setIsFavorite(newFavoriteState);
+          setIsFavorite((prev) => {
+            const newFavoriteState = !prev;
 
-          Animated.sequence([
-            Animated.timing(translateX, {
-              toValue: MAX_DRAG_DISTANCE,
-              duration: 150,
-              useNativeDriver: true,
-            }),
-            Animated.timing(starScale, {
-              toValue: 1.5,
-              duration: 150,
-              useNativeDriver: true,
-            }),
-            Animated.timing(starScale, {
-              toValue: 1,
-              duration: 150,
-              useNativeDriver: true,
-            }),
-            Animated.delay(300),
-            Animated.timing(translateX, {
-              toValue: 0,
-              duration: 150,
-              useNativeDriver: true,
-            }),
-          ]).start(() => {
-            onToggleFavorite && onToggleFavorite(symbol, newFavoriteState);
+            Animated.sequence([
+              Animated.timing(translateX, {
+                toValue: MAX_DRAG_DISTANCE,
+                duration: 150,
+                useNativeDriver: true,
+              }),
+              Animated.timing(starScale, {
+                toValue: 1.5,
+                duration: 150,
+                useNativeDriver: true,
+              }),
+              Animated.timing(starScale, {
+                toValue: 1,
+                duration: 150,
+                useNativeDriver: true,
+              }),
+              Animated.delay(300),
+              Animated.timing(translateX, {
+                toValue: 0,
+                duration: 150,
+                useNativeDriver: true,
+              }),
+            ]).start(() => {
+              onToggleFavorite && onToggleFavorite(symbol, newFavoriteState);
+            });
+
+            return newFavoriteState; // Обновляем `isFavorite`
           });
         } else {
           Animated.timing(translateX, {
@@ -84,6 +87,7 @@ const CryptoCard = ({ symbol, price, priceChangePercent, IconComponent, isFavori
           }).start();
         }
       },
+
       onPanResponderTerminate: () => {
         Animated.timing(translateX, {
           toValue: 0,

@@ -30,7 +30,7 @@ const BottomNav = ({ state, navigation }) => {
             onPress={() => navigation.navigate(route.name)}
             style={styles.navItem}
           >
-            <MaterialCommunityIcons name={iconName} size={30} color={isFocused ? '#0d1b3d' : '#ffffff'} />
+            <MaterialCommunityIcons name={iconName} size={28} color={isFocused ? '#ffffff' : '#AAB3CF'} />
           </TouchableOpacity>
         );
       })}
@@ -41,36 +41,36 @@ const BottomNav = ({ state, navigation }) => {
 const styles = StyleSheet.create({
   navbar: {
     position: 'absolute',
-    bottom: -10,
+    bottom: 0,
     left: 0,
     right: 0,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     backgroundColor: '#0d1b3d',
-    paddingVertical: 12,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    paddingVertical: 8,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 10,
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 8,
   },
   navItem: {
     alignItems: 'center',
     justifyContent: 'center',
     width: tabWidth,
-    height: 65,
+    height: 56,
   },
   indicator: {
     position: 'absolute',
-    width: 54,
-    height: 54,
+    width: 50,
+    height: 4,
     backgroundColor: '#ffffff',
-    borderRadius: 12,
-    top: 17,
-    left: (tabWidth - 54) / 2,
+    borderRadius: 2,
+    bottom: 8,
+    left: (tabWidth - 50) / 2,
   },
 });
 

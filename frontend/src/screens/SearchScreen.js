@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { View, TextInput, StyleSheet, FlatList, Animated, Text, Alert } from "react-native";
+import { View, TextInput, StyleSheet, FlatList, Animated, TouchableOpacity, Text, Alert } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import CryptoCard from "../components/CryptoCard";
 import icons from "../../data/icons";
@@ -15,26 +14,6 @@ const SearchScreen = () => {
   const [favorites, setFavorites] = useState({});
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  // Функция загрузки избранного из AsyncStorage
-  const loadFavorites = async () => {
-    try {
-      const storedFavorites = await AsyncStorage.getItem("favorites");
-      setFavorites(storedFavorites ? JSON.parse(storedFavorites) : {});
-    } catch (error) {
-      console.error("Ошибка загрузки избранного:", error);
-    }
-  };
-
-  // Функция сохранения избранного в AsyncStorage
-  const saveFavorites = async (newFavorites) => {
-    try {
-      await AsyncStorage.setItem("favorites", JSON.stringify(newFavorites));
-    } catch (error) {
-      console.error("Ошибка сохранения избранного:", error);
-    }
-  };
-
-  // Функция получения данных с API
   const fetchData = useCallback(async () => {
     try {
       const response = await axios.get(API_URL);
@@ -49,14 +28,13 @@ const SearchScreen = () => {
     } catch (error) {
       console.error("❌ Ошибка загрузки данных:", error);
       setError("Ошибка загрузки данных");
+      // Можно использовать Alert или Toast для уведомления пользователя
       Alert.alert("Ошибка", "Не удалось загрузить данные о криптовалютах");
     }
   }, []);
 
-  // Загрузка данных и избранного при первом рендере
   useEffect(() => {
     fetchData();
-    loadFavorites();
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, [fetchData]);
@@ -64,11 +42,9 @@ const SearchScreen = () => {
   useFocusEffect(
     useCallback(() => {
       fetchData();
-      loadFavorites();
     }, [fetchData])
   );
 
-  // Фильтр данных при поиске
   const getDisplayedData = useCallback(() => {
     if (!searchQuery) return cryptoData;
     return cryptoData.filter(([symbol]) =>
@@ -76,28 +52,25 @@ const SearchScreen = () => {
     );
   }, [cryptoData, searchQuery]);
 
-  // Обработчик поиска
   const handleSearch = (text) => {
     setSearchQuery(text);
   };
 
-  // Обработчик добавления/удаления из избранного
-  const handleToggleFavorite = async (symbol) => {
+  const handleToggleFavorite = (symbol) => {
     setFavorites((prev) => {
       const updated = { ...prev };
       if (updated[symbol]) {
-        delete updated[symbol];
+        delete updated[symbol]; // Удаляем, если уже есть
         console.log(`❌ Символ ${symbol} удален из избранных`);
       } else {
-        updated[symbol] = true;
+        updated[symbol] = true; // Добавляем, если нет
         console.log(`⭐ Символ ${symbol} добавлен в избранные`);
       }
-      saveFavorites(updated); // Сохранение обновленного списка избранного
       return updated;
     });
+    setCryptoData((prev) => [...prev]); 
   };
 
-  // Отрисовка каждой криптовалюты
   const renderItem = ({ item }) => {
     const [symbol, data] = item;
     const IconComponent = icons[symbol.toLowerCase()] || icons["btc"];
@@ -107,7 +80,7 @@ const SearchScreen = () => {
         price={data.price}
         priceChangePercent={data.priceChangePercent}
         IconComponent={IconComponent}
-        isFavorite={!!favorites[symbol]}
+        isFavorite={favorites[symbol] || false}
         onToggleFavorite={() => handleToggleFavorite(symbol)}
       />
     );
@@ -141,6 +114,7 @@ const SearchScreen = () => {
           { useNativeDriver: false }
         )}
         showsVerticalScrollIndicator={false}
+        // Дополнительные параметры для оптимизации
         initialNumToRender={10}
       />
     </View>
