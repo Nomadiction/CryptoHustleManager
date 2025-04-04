@@ -3,8 +3,8 @@ import { Animated, PanResponder, View, Text, StyleSheet, Dimensions } from 'reac
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const MAX_DRAG_DISTANCE = 120; // максимальное смещение карточки вправо
-const THRESHOLD_RATIO = 0.9;    // порог срабатывания свайпа (90% от MAX_DRAG_DISTANCE)
+const MAX_DRAG_DISTANCE = 120;
+const THRESHOLD_RATIO = 0.9;
 const THRESHOLD = MAX_DRAG_DISTANCE * THRESHOLD_RATIO;
 
 const CryptoCard = ({ symbol, price, priceChangePercent, IconComponent, isFavorite: propFavorite, onToggleFavorite }) => {
@@ -17,7 +17,7 @@ const CryptoCard = ({ symbol, price, priceChangePercent, IconComponent, isFavori
     setIsFavorite(propFavorite);
   }, [propFavorite]);
 
-  // При изменении состояния (переключении избранного) запускаем анимацию звезды
+  // Анимация изменения звезды при переключении избранного
   useEffect(() => {
     Animated.sequence([
       Animated.timing(starScale, {
@@ -37,7 +37,7 @@ const CryptoCard = ({ symbol, price, priceChangePercent, IconComponent, isFavori
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderMove: (_, gestureState) => {
-        // Разрешаем свайп только вправо
+        // Разрешаем свайп вправо
         const dx = Math.max(0, gestureState.dx);
         const clamped = Math.min(dx, MAX_DRAG_DISTANCE);
         translateX.setValue(clamped);
@@ -45,8 +45,6 @@ const CryptoCard = ({ symbol, price, priceChangePercent, IconComponent, isFavori
       onPanResponderRelease: (_, gestureState) => {
         const dx = Math.max(0, gestureState.dx);
         if (dx >= THRESHOLD) {
-          // Если свайп достаточный – анимируем смещение карточки вправо и возвращаем её,
-          // затем переключаем избранное
           Animated.sequence([
             Animated.timing(translateX, {
               toValue: MAX_DRAG_DISTANCE,
@@ -64,7 +62,6 @@ const CryptoCard = ({ symbol, price, priceChangePercent, IconComponent, isFavori
             onToggleFavorite && onToggleFavorite(symbol, newFavoriteState);
           });
         } else {
-          // Если свайп недостаточный, возвращаем карточку в исходное положение
           Animated.timing(translateX, {
             toValue: 0,
             duration: 150,
@@ -84,7 +81,7 @@ const CryptoCard = ({ symbol, price, priceChangePercent, IconComponent, isFavori
 
   return (
     <View style={styles.cardContainer}>
-      {/* Фиксированная звезда, расположенная слева. В исходном состоянии она полностью покрывается верхней частью карточки */}
+      {/* Фиксированная звезда, расположенная слева за свайповой частью */}
       <View style={styles.starContainer}>
         <Animated.View style={{ transform: [{ scale: starScale }] }}>
           <MaterialCommunityIcons
@@ -94,7 +91,7 @@ const CryptoCard = ({ symbol, price, priceChangePercent, IconComponent, isFavori
           />
         </Animated.View>
       </View>
-      {/* Свайповая часть карточки, которая в исходном положении закрывает звезду */}
+      {/* Свайповая часть карточки */}
       <Animated.View style={[styles.frontLayer, { transform: [{ translateX }] }]} {...panResponder.panHandlers}>
         <View style={styles.innerContent}>
           <View style={styles.iconContainer}>
@@ -121,40 +118,40 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     overflow: 'hidden',
     backgroundColor: "#1a2a4e",
-    elevation: 5, // shadow effect for iOS
-    shadowColor: "#000", // shadow effect for iOS
-    shadowOffset: { width: 0, height: 4 }, // shadow direction
-    shadowOpacity: 0.1, // shadow opacity
-    shadowRadius: 6, // shadow blur radius
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
   },
   starContainer: {
     position: 'absolute',
-    left: 15,  // Adjusted positioning for better visual balance
+    left: 15,
     top: 0,
     bottom: 0,
     justifyContent: 'center',
-    zIndex: 0,  // placed below the front layer
+    zIndex: 0,
   },
   frontLayer: {
     width: '100%',
     height: '100%',
     justifyContent: "center",
     backgroundColor: "#1a2a4e",
-    zIndex: 1, // placed above the star
-    borderRadius: 15, // rounded corners for the front layer
+    zIndex: 1,
+    borderRadius: 15,
   },
   innerContent: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12, // added padding for better content alignment
+    paddingHorizontal: 12,
   },
   iconContainer: {
     width: 45,
     height: 45,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 22.5, // circular icon container for better look
-    backgroundColor: "#2c3e50", // dark background for the icon
+    borderRadius: 22.5,
+    backgroundColor: "#2c3e50",
   },
   info: {
     flex: 1,

@@ -1,5 +1,13 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { View, TextInput, StyleSheet, FlatList, Animated, Text, Alert } from "react-native";
+import { 
+  View, 
+  TextInput, 
+  StyleSheet, 
+  FlatList, 
+  Animated, 
+  Text, 
+  Alert 
+} from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import axios from "axios";
 import CryptoCard from "../components/CryptoCard";
@@ -52,9 +60,7 @@ const SearchScreen = () => {
     );
   }, [cryptoData, searchQuery]);
 
-  const handleSearch = (text) => {
-    setSearchQuery(text);
-  };
+  const handleSearch = (text) => setSearchQuery(text);
 
   const handleToggleFavorite = (symbol) => {
     setFavorites((prev) => {
@@ -68,7 +74,8 @@ const SearchScreen = () => {
       }
       return updated;
     });
-    setCryptoData((prev) => [...prev]); // Обновляем список, чтобы перерендерить
+    // Обновляем список для перерендеринга
+    setCryptoData((prev) => [...prev]);
   };
 
   const renderItem = ({ item }) => {
@@ -94,9 +101,17 @@ const SearchScreen = () => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={["#0d1b3d", "#162f5b"]} style={styles.searchContainer}>
+      <LinearGradient 
+        colors={["#0d1b3d", "#162f5b"]} 
+        style={styles.searchContainer}
+      >
         <Animated.View style={[styles.searchBox, { opacity: searchBarOpacity }]}>
-          <MaterialCommunityIcons name="magnify" size={24} color="#ffffff" style={styles.searchIcon} />
+          <MaterialCommunityIcons 
+            name="magnify" 
+            size={24} 
+            color="#ffffff" 
+            style={styles.searchIcon} 
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Поиск криптовалют..."
