@@ -1,21 +1,21 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
-import { 
-  View, 
-  TextInput, 
-  StyleSheet, 
-  FlatList, 
-  Animated, 
-  Text, 
-  Alert 
+import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import {
+  View,
+  TextInput,
+  StyleSheet,
+  FlatList,
+  Animated,
+  Text,
+  Alert,
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
 import axios from "axios";
-import CryptoCard from "../components/CryptoCard";
-import icons from "../../data/icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import CryptoCard from "../components/CryptoCard";
+import icons from "../../data/icons";
 
-const API_URL = process.env.API_URL || "http://192.168.8.56:5000/api/crypto/prices";
+const API_URL = process.env.API_URL || "http://192.168.111.100:5000/api/crypto/prices";
 
 const SearchScreen = () => {
   const [cryptoData, setCryptoData] = useState([]);
@@ -27,15 +27,16 @@ const SearchScreen = () => {
   const fetchData = useCallback(async () => {
     try {
       const response = await axios.get(API_URL);
-      if (!response.data || Object.keys(response.data).length === 0) {
+      const data = response.data;
+      if (!data || Object.keys(data).length === 0) {
         console.warn("⚠️ API вернул пустые данные");
         setError("API вернул пустые данные");
         return;
       }
-      setCryptoData(Object.entries(response.data));
+      setCryptoData(Object.entries(data));
       setError(null);
-    } catch (error) {
-      console.error("❌ Ошибка загрузки данных:", error);
+    } catch (err) {
+      console.error("❌ Ошибка загрузки данных:", err);
       setError("Ошибка загрузки данных");
       Alert.alert("Ошибка", "Не удалось загрузить данные о криптовалютах");
     }
@@ -53,16 +54,18 @@ const SearchScreen = () => {
     }, [fetchData])
   );
 
-  const getDisplayedData = useCallback(() => {
+  const handleSearch = useCallback((text) => {
+    setSearchQuery(text);
+  }, []);
+
+  const displayedData = useMemo(() => {
     if (!searchQuery) return cryptoData;
     return cryptoData.filter(([symbol]) =>
       symbol.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [cryptoData, searchQuery]);
 
-  const handleSearch = (text) => setSearchQuery(text);
-
-  const handleToggleFavorite = (symbol) => {
+  const handleToggleFavorite = useCallback((symbol) => {
     setFavorites((prev) => {
       const updated = { ...prev };
       if (updated[symbol]) {
@@ -74,24 +77,22 @@ const SearchScreen = () => {
       }
       return updated;
     });
-    // Обновляем список для перерендеринга
-    setCryptoData((prev) => [...prev]);
-  };
+  }, []);
 
-  const renderItem = ({ item }) => {
+  const renderItem = useCallback(({ item }) => {
     const [symbol, data] = item;
-    const IconComponent = icons[symbol.toLowerCase()] || icons["btc"];
+    const IconComponent = icons[symbol.toLowerCase()] ?? icons["btc"];
     return (
       <CryptoCard
         symbol={symbol}
         price={data.price}
         priceChangePercent={data.priceChangePercent}
         IconComponent={IconComponent}
-        isFavorite={favorites[symbol] || false}
+        isFavorite={!!favorites[symbol]}
         onToggleFavorite={() => handleToggleFavorite(symbol)}
       />
     );
-  };
+  }, [favorites, handleToggleFavorite]);
 
   const searchBarOpacity = scrollY.interpolate({
     inputRange: [0, 50],
@@ -101,16 +102,13 @@ const SearchScreen = () => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient 
-        colors={["#0d1b3d", "#162f5b"]} 
-        style={styles.searchContainer}
-      >
+      <LinearGradient colors={["#0d1b3d", "#162f5b"]} style={styles.searchContainer}>
         <Animated.View style={[styles.searchBox, { opacity: searchBarOpacity }]}>
-          <MaterialCommunityIcons 
-            name="magnify" 
-            size={24} 
-            color="#ffffff" 
-            style={styles.searchIcon} 
+          <MaterialCommunityIcons
+            name="magnify"
+            size={24}
+            color="#ffffff"
+            style={styles.searchIcon}
           />
           <TextInput
             style={styles.searchInput}
@@ -130,7 +128,7 @@ const SearchScreen = () => {
       )}
 
       <FlatList
-        data={getDisplayedData()}
+        data={displayedData}
         keyExtractor={(item) => item[0]}
         renderItem={renderItem}
         contentContainerStyle={styles.listContainer}
@@ -170,35 +168,33 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 15,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 6,
+    shadowRadius: 4,
+    elevation: 3,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
-    color: "#ffffff",
+    color: "#fff",
     fontSize: 16,
+  },
+  errorContainer: {
+    marginTop: 100,
+    padding: 16,
+    alignItems: "center",
+  },
+  errorText: {
+    color: "#ff4d4d",
+    fontSize: 16,
+    textAlign: "center",
   },
   listContainer: {
     paddingTop: 80,
-    paddingBottom: 120,
-    paddingHorizontal: 8,
-  },
-  errorContainer: {
-    backgroundColor: "#ff4d4d",
-    padding: 10,
-    marginHorizontal: 16,
-    borderRadius: 6,
-    marginTop: 40,
-  },
-  errorText: {
-    color: "#ffffff",
-    textAlign: "center",
-    fontSize: 16,
+    paddingBottom: 20,
+    paddingHorizontal: 16,
   },
 });
 

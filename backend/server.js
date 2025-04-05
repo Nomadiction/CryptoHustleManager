@@ -1,21 +1,35 @@
-const dotenv = require('dotenv');
-const cors = require('cors');
-const express = require('express');
-const path = require('path');
-
-dotenv.config();
+const express = require("express");
+const cors = require("cors");
+const os = require("os");
 
 const app = express();
 app.use(cors());
 
-// Обслуживание статических файлов
-app.use('/assets/icons', express.static(path.join(__dirname, 'assets/icons')));
-
-// API маршруты
-const apiRoutes = require('./routes/cryptoRoutes');
-app.use('/api/crypto', apiRoutes);
-
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT} — http://192.168.8.56:${PORT}/api/crypto/prices`);
+
+// Получение локального IP
+const interfaces = os.networkInterfaces();
+let localIp = "localhost";
+for (const name of Object.keys(interfaces)) {
+  for (const iface of interfaces[name]) {
+    if (iface.family === "IPv4" && !iface.internal) {
+      localIp = iface.address;
+    }
+  }
+}
+
+// Подключение маршрутов
+const cryptoRoutes = require("./routes/cryptoRoutes");
+app.use("/api/crypto", cryptoRoutes);
+
+// Конфигурационный endpoint
+app.get("/api/config", (req, res) => {
+  res.json({
+    apiUrl: `http://${localIp}:${PORT}/api/crypto/prices`,
+  });
+});
+
+// Старт сервера
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Сервер работает на http://${localIp}:${PORT}/api/crypto/prices`);
 });
