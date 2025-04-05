@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   flatListContent: {
-    paddingBottom: 32,
+    paddingBottom: 72,
     minHeight: "100%",
   },
   header: {
