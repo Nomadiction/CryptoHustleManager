@@ -45,8 +45,9 @@ if (localIp === "localhost") {
 
 const PORT = process.env.PORT || 5000;
 const apiUrl = `http://${localIp}:${PORT}/api/crypto/prices`;
+const binanceUrl = 'https://api.binance.com/api/v3/ticker/24hr';
 
-const envContent = `API_URL=${apiUrl}\nPORT=${PORT}\n`;
+const envContent = `API_URL=${apiUrl}\nPORT=${PORT}\nBINANCE_API_URL=${binanceUrl}`;
 
 fs.writeFileSync(".env", envContent);
 console.log("✅ .env обновлён. Использован IP:", localIp);
