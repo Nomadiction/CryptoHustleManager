@@ -1,201 +1,204 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
-  TextInput,
-  StyleSheet,
-  FlatList,
-  Animated,
   Text,
-  Alert,
+  TextInput,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  Platform,
+  Animated,
+  ActivityIndicator,
 } from "react-native";
-import axios from "axios";
-import { useFocusEffect } from "@react-navigation/native";
-import { LinearGradient } from "expo-linear-gradient";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import CryptoCard from "../components/CryptoCard";
-import icons from "../../data/icons";
+import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
 
-const API_URL = process.env.API_URL || "http://192.168.111.100:5000/api/crypto/prices";
+const API_URL = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false";
 
-const SearchScreen = () => {
-  const [cryptoData, setCryptoData] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [error, setError] = useState(null);
-  const [favorites, setFavorites] = useState({});
-  const scrollY = useRef(new Animated.Value(0)).current;
-
-  const fetchData = useCallback(async () => {
-    try {
-      const response = await axios.get(API_URL);
-      const data = response.data;
-      if (!data || Object.keys(data).length === 0) {
-        console.warn("⚠️ API вернул пустые данные");
-        setError("API вернул пустые данные");
-        return;
-      }
-      setCryptoData(Object.entries(data));
-      setError(null);
-    } catch (err) {
-      console.error("❌ Ошибка загрузки данных:", err);
-      setError("Ошибка загрузки данных");
-      Alert.alert("Ошибка", "Не удалось загрузить данные о криптовалютах");
-    }
-  }, []);
+const AnimatedCard = ({ item, index, onPress }) => {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(20)).current;
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        delay: index * 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 500,
+        delay: index * 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchData();
-    }, [fetchData])
+  return (
+    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY }] }}>
+      <TouchableOpacity style={styles.cardContainer} onPress={() => onPress(item)}>
+        <BlurView intensity={60} tint="dark" style={styles.blurCard}>
+          <Image source={{ uri: item.image }} style={styles.icon} />
+          <View style={styles.textWrapper}>
+            <Text style={styles.name}>{item.name}</Text>
+            <Text style={styles.symbol}>{item.symbol.toUpperCase()}</Text>
+          </View>
+          <View style={{ alignItems: "flex-end" }}>
+            <Text style={styles.price}>
+              ${item.current_price < 0.01
+                ? item.current_price.toFixed(6)
+                : item.current_price.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 6,
+                })}
+            </Text>
+            <Text
+              style={[
+                styles.priceChange,
+                { color: item.price_change_percentage_24h >= 0 ? "#10b981" : "#ef4444" },
+              ]}
+            >
+              {item.price_change_percentage_24h?.toFixed(2)}%
+            </Text>
+          </View>
+        </BlurView>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
+const SearchScreen = () => {
+  const [query, setQuery] = useState("");
+  const [cryptoData, setCryptoData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch(API_URL);
+        const json = await res.json();
+        setCryptoData(json);
+      } catch (err) {
+        console.error("Ошибка при загрузке данных:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const filteredData = cryptoData.filter((item) =>
+    item.name.toLowerCase().includes(query.toLowerCase()) ||
+    item.symbol.toLowerCase().includes(query.toLowerCase())
   );
 
-  const handleSearch = useCallback((text) => {
-    setSearchQuery(text);
-  }, []);
+  const handlePress = (asset) => {
+    navigation.navigate("AssetDetails", { asset });
+  };
 
-  const displayedData = useMemo(() => {
-    if (!searchQuery) return cryptoData;
-    return cryptoData.filter(([symbol]) =>
-      symbol.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [cryptoData, searchQuery]);
-
-  const handleToggleFavorite = useCallback((symbol) => {
-    setFavorites((prev) => {
-      const updated = { ...prev };
-      if (updated[symbol]) {
-        delete updated[symbol];
-        console.log(`❌ Символ ${symbol} удален из избранных`);
-      } else {
-        updated[symbol] = true;
-        console.log(`⭐ Символ ${symbol} добавлен в избранные`);
-      }
-      return updated;
-    });
-  }, []);
-
-  const renderItem = useCallback(({ item }) => {
-    const [symbol, data] = item;
-    const IconComponent = icons[symbol.toLowerCase()] ?? icons["btc"];
-    return (
-      <CryptoCard
-        symbol={symbol}
-        price={data.price}
-        priceChangePercent={data.priceChangePercent}
-        IconComponent={IconComponent}
-        isFavorite={!!favorites[symbol]}
-        onToggleFavorite={() => handleToggleFavorite(symbol)}
-      />
-    );
-  }, [favorites, handleToggleFavorite]);
-
-  const searchBarOpacity = scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
-  });
+  const renderItem = ({ item, index }) => (
+    <AnimatedCard item={item} index={index} onPress={handlePress} />
+  );
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={["#0d1b3d", "#162f5b"]} style={styles.searchContainer}>
-        <Animated.View style={[styles.searchBox, { opacity: searchBarOpacity }]}>
-          <MaterialCommunityIcons
-            name="magnify"
-            size={24}
-            color="#ffffff"
-            style={styles.searchIcon}
-          />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Поиск криптовалют..."
-            placeholderTextColor="#AAB7C4"
-            value={searchQuery}
-            onChangeText={handleSearch}
-            clearButtonMode="always"
-          />
-        </Animated.View>
-      </LinearGradient>
+      <View style={styles.searchBar}>
+        <Ionicons name="search" size={20} color="#94a3b8" style={{ marginRight: 10 }} />
+        <TextInput
+          placeholder="Search coins or symbols..."
+          placeholderTextColor="#64748b"
+          style={styles.input}
+          value={query}
+          onChangeText={setQuery}
+          autoCapitalize="none"
+        />
+      </View>
 
-      {error && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
+      {loading ? (
+        <ActivityIndicator size="large" color="#10b981" style={{ marginTop: 40 }} />
+      ) : (
+        <FlatList
+          data={filteredData}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: 100 }}
+          showsVerticalScrollIndicator={false}
+        />
       )}
-
-      <FlatList
-        data={displayedData}
-        keyExtractor={(item) => item[0]}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContainer}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
-        showsVerticalScrollIndicator={false}
-        initialNumToRender={10}
-      />
     </View>
   );
 };
 
+export default SearchScreen;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0a1e44",
-    paddingTop: 20,
+    backgroundColor: "#0f172a",
+    paddingTop: 30,
+    paddingHorizontal: 20,
   },
-  searchContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: "#233567",
-    zIndex: 10,
-  },
-  searchBox: {
+  searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1a2a4e",
-    borderRadius: 30,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
+    backgroundColor: "#1e293b",
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: Platform.OS === "ios" ? 14 : 10,
+    marginBottom: 24,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
+  input: {
     flex: 1,
-    color: "#fff",
     fontSize: 16,
+    color: "#e2e8f0",
   },
-  errorContainer: {
-    marginTop: 100,
-    padding: 16,
+  cardContainer: {
+    marginBottom: 14,
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+  blurCard: {
+    flexDirection: "row",
     alignItems: "center",
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
   },
-  errorText: {
-    color: "#ff4d4d",
+  icon: {
+    width: 42,
+    height: 42,
+    marginRight: 16,
+    borderRadius: 21,
+  },
+  textWrapper: {
+    flex: 1,
+  },
+  name: {
+    color: "#f8fafc",
+    fontSize: 17,
+    fontWeight: "600",
+  },
+  symbol: {
+    color: "#94a3b8",
+    fontSize: 13,
+    marginTop: 2,
+  },
+  price: {
     fontSize: 16,
-    textAlign: "center",
-  },
-  listContainer: {
-    paddingTop: 80,
-    paddingBottom: 20,
-    paddingHorizontal: 16,
+    fontWeight: "600",
+    color: "#10b981",
   },
 });
-
-export default SearchScreen;

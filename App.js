@@ -1,10 +1,10 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
-import HomeScreen from './src/screens/HomeScreen';
-import SearchScreen from './src/screens/SearchScreen';
-import PortfolioStack from './src/navigation/PortfolioStack'; 
-import BottomNav from './src/components/BottomNav';
+import HomeScreen from './frontend/src/screens/HomeScreen';
+import SearchScreen from './frontend/src/screens/SearchScreen';
+import PortfolioStack from './frontend/src/navigation/PortfolioStack'; 
+import BottomNav from './frontend/src/components/BottomNav';
 
 const Tab = createBottomTabNavigator();
 
