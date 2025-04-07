@@ -19,11 +19,16 @@ const BottomNav = ({ state, navigation }) => {
   }, [state.index]);
 
   return (
-    <LinearGradient colors={["#0d1b3d", "#162f5b"]} style={styles.navbar}>
+    <LinearGradient colors={["#e2e8f0", "#f9fafb"]} style={styles.navbar}>
       <Animated.View style={[styles.indicator, { transform: [{ translateX }] }]} />
       {state.routes.map((route, index) => {
         const isFocused = state.index === index;
-        const iconName = route.name === 'Home' ? 'home' : route.name === 'Search' ? 'magnify' : 'wallet';
+        const iconName =
+          route.name === 'Home'
+            ? 'home'
+            : route.name === 'Search'
+            ? 'magnify'
+            : 'wallet';
 
         return (
           <TouchableOpacity
@@ -31,7 +36,11 @@ const BottomNav = ({ state, navigation }) => {
             onPress={() => navigation.navigate(route.name)}
             style={styles.navItem}
           >
-            <MaterialCommunityIcons name={iconName} size={28} color={isFocused ? '#ffffff' : '#AAB7C4'} />
+            <MaterialCommunityIcons
+              name={iconName}
+              size={28}
+              color={isFocused ? '#1f2937' : '#64748b'}
+            />
           </TouchableOpacity>
         );
       })}
@@ -45,32 +54,33 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+    backgroundColor: "#e2e8f0",
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingVertical: 10, // Было 14
-    borderTopLeftRadius: 20, // Было 24
-    borderTopRightRadius: 20, // Было 24
-    shadowColor: '#000',
+    paddingVertical: 10,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 10, // Было 12
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 6,
   },
   navItem: {
     alignItems: 'center',
     justifyContent: 'center',
     width: tabWidth,
-    height: 55, // Было 65
+    height: 55,
   },
   indicator: {
     position: 'absolute',
-    width: 50, // Было 60
+    width: 50,
     height: 4,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1f2937',
     borderRadius: 2,
-    bottom: 6, // Было 8
-    left: (tabWidth - 50) / 2, // Уменьшено под новый размер
+    bottom: 6,
+    left: (tabWidth - 50) / 2,
   },
 });
 
