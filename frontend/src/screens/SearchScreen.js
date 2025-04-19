@@ -1,143 +1,21 @@
-import React, { useState, useEffect, useRef, memo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
-  Text,
   TextInput,
-  FlatList,
   TouchableOpacity,
   StyleSheet,
-  Image,
   Platform,
   Animated,
-  ActivityIndicator,
   Easing,
+  ActivityIndicator,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { Swipeable } from "react-native-gesture-handler";
+import { FlashList } from "@shopify/flash-list";
+import CryptoCard from "../components/CryptoCard";
 
-// === API URL ===
 const API_URL =
   "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false";
-
-// === Функция форматирования чисел ===
-const formatNumber = (num) => {
-  if (num >= 1e12) return (num / 1e12).toFixed(2) + "T";
-  if (num >= 1e9) return (num / 1e9).toFixed(2) + "B";
-  if (num >= 1e6) return (num / 1e6).toFixed(2) + "M";
-  if (num >= 1e3) return (num / 1e3).toFixed(2) + "K";
-  return num.toString();
-};
-
-// === КАРТОЧКА С АНИМАЦИЕЙ И СВАЙПОМ ===
-const AnimatedCard = memo(
-  ({ item, index, onPress, onToggleFavorite, isFavorite }) => {
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const translateY = useRef(new Animated.Value(20)).current;
-    const swipeableRef = useRef(null);
-
-    useEffect(() => {
-      // Параллельная анимация появления карточки
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 400,
-          delay: index * 30,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration: 400,
-          delay: index * 30,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, [index, fadeAnim, translateY]);
-
-    const handleRightSwipe = () => {
-      onToggleFavorite(item.id, true); // Добавить в избранное
-      swipeableRef.current?.close();
-    };
-
-    const handleLeftSwipe = () => {
-      onToggleFavorite(item.id, false); // Удалить из избранного
-      swipeableRef.current?.close();
-    };
-
-    const isPositive = item.price_change_percentage_24h >= 0;
-
-    const renderRightActions = () => (
-      <View style={styles.rightAction}>
-        <Ionicons
-          name={isFavorite ? "star" : "star-outline"}
-          size={28}
-          color="#facc15"
-        />
-        <Text style={styles.swipeText}>{isFavorite ? "Unpin" : "Pin"}</Text>
-      </View>
-    );
-
-    const renderLeftActions = () => (
-      <View style={styles.leftAction}>
-        <Ionicons name="trash-outline" size={28} color="#ef4444" />
-        <Text style={styles.swipeText}>Delete</Text>
-      </View>
-    );
-
-    return (
-      <Swipeable
-        ref={swipeableRef}
-        renderRightActions={renderRightActions}
-        renderLeftActions={isFavorite ? renderLeftActions : null}
-        onSwipeableRightOpen={handleRightSwipe}
-        onSwipeableLeftOpen={isFavorite ? handleLeftSwipe : undefined}
-        friction={2}
-      >
-        <Animated.View
-          style={{
-            opacity: fadeAnim,
-            transform: [{ translateY }],
-          }}
-        >
-          <TouchableOpacity style={styles.assetCard} onPress={() => onPress(item)}>
-            <Image source={{ uri: item.image }} style={styles.icon} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.assetName}>{item.name}</Text>
-              <Text style={styles.assetSymbol}>{item.symbol.toUpperCase()}</Text>
-            </View>
-            <View style={styles.coinStats}>
-              <Text style={styles.coinPrice}>
-                $
-                {item.current_price < 0.01
-                  ? item.current_price.toFixed(6)
-                  : item.current_price.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 6,
-                    })}
-              </Text>
-              <View
-                style={[
-                  styles.coinChangeContainer,
-                  isPositive ? styles.positiveBg : styles.negativeBg,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.coinChangeText,
-                    isPositive ? styles.positiveText : styles.negativeText,
-                  ]}
-                >
-                  {isPositive ? "+" : ""}
-                  {item.price_change_percentage_24h?.toFixed(2)}%
-                </Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
-      </Swipeable>
-    );
-  }
-);
 
 const SearchScreen = () => {
   const [query, setQuery] = useState("");
@@ -146,17 +24,11 @@ const SearchScreen = () => {
   const [loading, setLoading] = useState(true);
   const navigation = useNavigation();
 
-  // Реф для FlatList, чтобы скроллить к верху
   const listRef = useRef(null);
-
-  // Анимация для строки поиска (высота и прозрачность)
-  const searchHeight = useRef(new Animated.Value(60)).current;
-  const searchOpacity = useRef(new Animated.Value(1)).current;
-
-  // Флаг видимости поисковой строки
-  const [searchVisible, setSearchVisible] = useState(true);
-  // Состояние показа кнопки "скролл вверх"
+  const scrollTopAnim = useRef(new Animated.Value(0)).current;
+  const arrowScaleAnim = useRef(new Animated.Value(1)).current;
   const [showScrollToTop, setShowScrollToTop] = useState(false);
+  const prevOffset = useRef(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -170,53 +42,49 @@ const SearchScreen = () => {
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
-  // Обработчик прокрутки FlatList
+  const startArrowPulse = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(arrowScaleAnim, {
+          toValue: 1.15,
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(arrowScaleAnim, {
+          toValue: 1,
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  };
+
   const handleScroll = (event) => {
     const offsetY = event.nativeEvent.contentOffset.y;
-    
-    // Если прокрутили больше 50 и поисковая строка видна, скрываем её
-    if (offsetY > 50 && searchVisible) {
-      setSearchVisible(false);
-      Animated.parallel([
-        Animated.timing(searchHeight, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: false,
-          easing: Easing.linear,
-        }),
-        Animated.timing(searchOpacity, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: false,
-          easing: Easing.linear,
-        }),
-      ]).start();
-    } 
-    // Если прокрутка меньше 50 и поисковая строка скрыта, показываем её
-    else if (offsetY <= 50 && !searchVisible) {
-      setSearchVisible(true);
-      Animated.parallel([
-        Animated.timing(searchHeight, {
-          toValue: 60,
-          duration: 200,
-          useNativeDriver: false,
-          easing: Easing.linear,
-        }),
-        Animated.timing(searchOpacity, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: false,
-          easing: Easing.linear,
-        }),
-      ]).start();
+
+    if (offsetY > 300 && !showScrollToTop) {
+      setShowScrollToTop(true);
+      Animated.timing(scrollTopAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.ease),
+      }).start(() => startArrowPulse());
+    } else if (offsetY <= 300 && showScrollToTop) {
+      setShowScrollToTop(false);
+      Animated.timing(scrollTopAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
     }
 
-    // Показывать кнопку "вверх", если прокрутка больше 300
-    setShowScrollToTop(offsetY > 300);
+    prevOffset.current = offsetY;
   };
 
   const toggleFavorite = (id, add) => {
@@ -240,30 +108,15 @@ const SearchScreen = () => {
     navigation.navigate("CoinDetail", { coinId: asset.id });
   };
 
-  const clearQuery = () => {
-    setQuery("");
-  };
-
-  const scrollToTop = () => {
+  const clearQuery = () => setQuery("");
+  const scrollToTop = () =>
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
-  };
 
   return (
     <View style={styles.container}>
-      {/* Анимированная обёртка для строки поиска */}
-      <Animated.View
-        style={[
-          styles.searchBarContainer,
-          { height: searchHeight, opacity: searchOpacity },
-        ]}
-      >
+      <View style={styles.searchBarContainer}>
         <View style={styles.searchBar}>
-          <Ionicons
-            name="search"
-            size={20}
-            color="#94a3b8"
-            style={{ marginRight: 10 }}
-          />
+          <Ionicons name="search" size={20} color="#94a3b8" style={{ marginRight: 10 }} />
           <TextInput
             placeholder="Search coins or symbols..."
             placeholderTextColor="#94a3b8"
@@ -278,18 +131,18 @@ const SearchScreen = () => {
             </TouchableOpacity>
           )}
         </View>
-      </Animated.View>
+      </View>
 
       {loading ? (
         <ActivityIndicator size="large" color="#10b981" style={{ marginTop: 40 }} />
       ) : (
         <>
-          <FlatList
+          <FlashList
             ref={listRef}
             data={combinedData}
             keyExtractor={(item) => item.id}
             renderItem={({ item, index }) => (
-              <AnimatedCard
+              <CryptoCard
                 item={item}
                 index={index}
                 onPress={handlePress}
@@ -297,22 +150,34 @@ const SearchScreen = () => {
                 isFavorite={favorites.includes(item.id)}
               />
             )}
+            estimatedItemSize={92}
             contentContainerStyle={{ paddingBottom: 120 }}
             showsVerticalScrollIndicator={false}
-            removeClippedSubviews={true}
-            initialNumToRender={12}
-            maxToRenderPerBatch={10}
-            windowSize={5}
             onScroll={handleScroll}
             scrollEventThrottle={16}
           />
-
-          {/* FAB-кнопка для прокрутки вверх */}
-          {showScrollToTop && (
-            <TouchableOpacity style={styles.fab} onPress={scrollToTop}>
-              <Ionicons name="arrow-up" size={24} color="#fff" />
+          <Animated.View
+            style={[
+              styles.fab,
+              {
+                transform: [
+                  {
+                    scale: scrollTopAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, 1],
+                    }),
+                  },
+                ],
+                opacity: scrollTopAnim,
+              },
+            ]}
+          >
+            <TouchableOpacity onPress={scrollToTop}>
+              <Animated.View style={{ transform: [{ scale: arrowScaleAnim }] }}>
+                <Ionicons name="arrow-up" size={24} color="#1f2937" />
+              </Animated.View>
             </TouchableOpacity>
-          )}
+          </Animated.View>
         </>
       )}
     </View>
@@ -326,12 +191,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f9fafb",
     paddingHorizontal: 20,
-    paddingTop: 5,
+    paddingTop: 10,
   },
-  // Анимация строки поиска
   searchBarContainer: {
-    overflow: "hidden",
-    marginBottom: 5,
+    marginBottom: 10,
   },
   searchBar: {
     flexDirection: "row",
@@ -341,9 +204,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: Platform.OS === "ios" ? 14 : 10,
     shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 6,
   },
   input: {
     flex: 1,
@@ -353,99 +216,14 @@ const styles = StyleSheet.create({
   clearButton: {
     marginLeft: 6,
   },
-  // Стиль карточки актива
-  assetCard: {
-    flexDirection: "row",
-    backgroundColor: "#ffffff",
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 12,
-    alignItems: "center",
-    justifyContent: "space-between",
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  icon: {
-    width: 44,
-    height: 44,
-    marginRight: 16,
-    borderRadius: 22,
-    backgroundColor: "#f3f4f6",
-  },
-  assetName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#1e293b",
-  },
-  assetSymbol: {
-    fontSize: 13,
-    color: "#64748b",
-    marginTop: 2,
-  },
-  coinStats: {
-    alignItems: "flex-end",
-  },
-  coinPrice: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
-  },
-  coinChangeContainer: {
-    borderRadius: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    marginTop: 4,
-  },
-  coinChangeText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  positiveBg: {
-    backgroundColor: "rgba(34,197,94,0.12)",
-  },
-  negativeBg: {
-    backgroundColor: "rgba(239,68,68,0.12)",
-  },
-  positiveText: {
-    color: "#22c55e",
-  },
-  negativeText: {
-    color: "#ef4444",
-  },
-  // Свайп-акшены
-  rightAction: {
-    backgroundColor: "#fef08a",
-    justifyContent: "center",
-    alignItems: "center",
-    width: 80,
-    borderRadius: 18,
-    marginBottom: 12,
-  },
-  leftAction: {
-    backgroundColor: "#fee2e2",
-    justifyContent: "center",
-    alignItems: "center",
-    width: 80,
-    borderRadius: 18,
-    marginBottom: 12,
-  },
-  swipeText: {
-    color: "#92400e",
-    fontWeight: "600",
-    fontSize: 12,
-    marginTop: 4,
-  },
-  // FAB-кнопка для прокрутки вверх
   fab: {
     position: "absolute",
-    right: 40,
+    right: 35,
     bottom: 90,
-    width: 52,
-    height: 52,
+    width: 50,
+    height: 50,
     borderRadius: 26,
-    backgroundColor: "#10b981",
+    backgroundColor: "#e2e8f0",
     justifyContent: "center",
     alignItems: "center",
     elevation: 3,

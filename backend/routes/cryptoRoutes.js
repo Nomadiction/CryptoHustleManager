@@ -1,8 +1,7 @@
-const express = require('express');
-const { getCryptoPrices } = require('../controllers/cryptoController');
-
+const express = require("express");
 const router = express.Router();
+const { getCryptoPrices } = require("../controllers/cryptoController");
 
-router.get('/prices', getCryptoPrices);
+router.get("/prices", getCryptoPrices);
 
 module.exports = router;

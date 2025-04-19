@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const os = require("os");
+const cryptoRoutes = require("./routes/cryptoRoutes");
 
 const app = express();
 app.use(cors());
@@ -14,22 +15,23 @@ for (const name of Object.keys(interfaces)) {
   for (const iface of interfaces[name]) {
     if (iface.family === "IPv4" && !iface.internal) {
       localIp = iface.address;
+      break;
     }
   }
+  if (localIp !== "localhost") break;
 }
 
-// Подключение маршрутов
-const cryptoRoutes = require("./routes/cryptoRoutes");
+// Роуты
 app.use("/api/crypto", cryptoRoutes);
 
-// Конфигурационный endpoint
+// Endpoint для клиента с адресом API
 app.get("/api/config", (req, res) => {
   res.json({
     apiUrl: `http://${localIp}:${PORT}/api/crypto/prices`,
   });
 });
 
-// Старт сервера
+// Запуск сервера
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Сервер работает на http://${localIp}:${PORT}/api/crypto/prices`);
+  console.log(`🚀 Сервер работает: http://${localIp}:${PORT}/api/crypto/prices`);
 });

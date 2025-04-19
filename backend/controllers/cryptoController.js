@@ -1,19 +1,47 @@
-const { getCryptoPrices } = require('../services/cryptoService');
+const axios = require("axios");
+const NodeCache = require("node-cache");
 
-exports.getCryptoPrices = async (req, res) => {
-  try {
-    const symbols = [
-      'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'LTCUSDT', 'ADAUSDT',
-      'XRPUSDT', 'EOSUSDT', 'TUSDUSDT', 'IOTAUSDT', 'XLMUSDT',
-      'TRXUSDT', 'ETCUSDT', 'USDCUSDT', 'LINKUSDT', 'ZRXUSDT',
-      'BATUSDT', 'ZECUSDT', 'DASHUSDT', 'THETAUSDT', 'ENJUSDT',
-      'ATOMUSDT', 'DOGEUSDT', 'ALGOUSDT', 'MTLUSDT', 'CHZUSDT',
-    ]
+const cryptoCache = new NodeCache({ stdTTL: 60 });
 
-    const prices = await getCryptoPrices(symbols);
-    res.json(prices);
-  } catch (error) {
-    console.error('❌ Ошибка в контроллере:', error.message);
-    res.status(500).json({ error: 'Ошибка получения данных' });
+const supportedCoins = [
+  "bitcoin", "ethereum", "binancecoin", "litecoin", "cardano", "ripple", "eos",
+  "tether", "iota", "stellar", "tron", "ethereum-classic", "usd-coin", "chainlink",
+  "0x", "basic-attention-token", "zcash", "dash", "theta-token", "enjincoin",
+  "cosmos", "dogecoin", "algorand", "metal", "chiliz"
+];
+
+async function getCryptoPrices(req, res) {
+  const cached = cryptoCache.get("cryptoPrices");
+  if (cached) {
+    return res.json(cached);
   }
-};
+
+  try {
+    const response = await axios.get(
+      `https://api.coingecko.com/api/v3/simple/price`,
+      {
+        params: {
+          ids: supportedCoins.join(","),
+          vs_currencies: "usd",
+          include_24hr_change: true,
+        },
+      }
+    );
+
+    const formatted = Object.entries(response.data).reduce((acc, [key, value]) => {
+      acc[key] = {
+        price: value.usd,
+        priceChangePercent: value.usd_24h_change.toFixed(2),
+      };
+      return acc;
+    }, {});
+
+    cryptoCache.set("cryptoPrices", formatted);
+    res.json(formatted);
+  } catch (err) {
+    console.error("❌ CoinGecko error:", err.message);
+    res.status(500).json({ error: "Failed to fetch data from CoinGecko" });
+  }
+}
+
+module.exports = { getCryptoPrices };
