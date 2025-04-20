@@ -13,9 +13,8 @@ import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import CryptoCard from "../components/CryptoCard";
+import { getBaseUrl } from "./utils/api";
 
-const API_URL =
-  "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false";
 
 const SearchScreen = () => {
   const [query, setQuery] = useState("");
@@ -30,18 +29,30 @@ const SearchScreen = () => {
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const prevOffset = useRef(0);
 
+  // Загрузка данных с сервера
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch(API_URL);
-        const json = await res.json();
-        setCryptoData(json);
+        const baseUrl = await getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/crypto/prices`);
+        const data = await res.json();
+
+        const formatted = Object.entries(data).map(([id, info]) => ({
+          id,
+          name: id.charAt(0).toUpperCase() + id.slice(1),
+          symbol: id.slice(0, 3).toUpperCase(),
+          price: info.price,
+          priceChangePercent: info.priceChangePercent,
+        }));
+
+        setCryptoData(formatted);
       } catch (err) {
-        console.error("Ошибка при загрузке данных:", err);
+        console.error("❌ Ошибка при получении данных:", err.message);
       } finally {
         setLoading(false);
       }
     };
+
     fetchData();
   }, []);
 
