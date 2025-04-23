@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   TextInput,
@@ -13,48 +13,19 @@ import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import CryptoCard from "../components/CryptoCard";
-import { getBaseUrl } from "./utils/api";
-
+import { useCryptoData } from "../hooks/useCryptoData"; 
 
 const SearchScreen = () => {
+  const { cryptoData, loading } = useCryptoData();
   const [query, setQuery] = useState("");
-  const [cryptoData, setCryptoData] = useState([]);
   const [favorites, setFavorites] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const navigation = useNavigation();
 
+  const navigation = useNavigation();
   const listRef = useRef(null);
   const scrollTopAnim = useRef(new Animated.Value(0)).current;
   const arrowScaleAnim = useRef(new Animated.Value(1)).current;
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const prevOffset = useRef(0);
-
-  // Загрузка данных с сервера
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const baseUrl = await getBaseUrl();
-        const res = await fetch(`${baseUrl}/api/crypto/prices`);
-        const data = await res.json();
-
-        const formatted = Object.entries(data).map(([id, info]) => ({
-          id,
-          name: id.charAt(0).toUpperCase() + id.slice(1),
-          symbol: id.slice(0, 3).toUpperCase(),
-          price: info.price,
-          priceChangePercent: info.priceChangePercent,
-        }));
-
-        setCryptoData(formatted);
-      } catch (err) {
-        console.error("❌ Ошибка при получении данных:", err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
 
   const startArrowPulse = () => {
     Animated.loop(

@@ -40,15 +40,25 @@ const CryptoCard = ({
 
   const handleRightSwipe = () => {
     onToggleFavorite(item.id, true);
-    swipeableRef.current?.close();
+    setTimeout(() => {
+      swipeableRef.current?.close();
+    }, 200);
   };
 
   const handleLeftSwipe = () => {
     onToggleFavorite(item.id, false);
-    swipeableRef.current?.close();
+    setTimeout(() => {
+      swipeableRef.current?.close();
+    }, 200);
   };
 
-  const isPositive = item.price_change_percentage_24h >= 0;
+  const handleCardPress = () => {
+    swipeableRef.current?.close();
+    onPress(item);
+  };
+
+  const changePercent = parseFloat(item.priceChangePercent);
+  const isPositive = !isNaN(changePercent) && changePercent >= 0;
 
   const renderRightActions = () => (
     <View style={styles.rightAction}>
@@ -73,7 +83,7 @@ const CryptoCard = ({
     <Swipeable
       ref={swipeableRef}
       renderRightActions={renderRightActions}
-      renderLeftActions={renderLeftActions}
+      renderLeftActions={isFavorite ? renderLeftActions : undefined}
       onSwipeableRightOpen={handleRightSwipe}
       onSwipeableLeftOpen={handleLeftSwipe}
       friction={2}
@@ -81,10 +91,14 @@ const CryptoCard = ({
       <Animated.View
         style={{
           opacity: fadeAnim,
-          transform: [{ translateY }],
+          transform: [{ translateY: translateY }],
         }}
       >
-        <TouchableOpacity style={styles.assetCard} onPress={() => onPress(item)}>
+        <TouchableOpacity
+          style={styles.assetCard}
+          onPress={handleCardPress}
+          activeOpacity={0.85}
+        >
           <Image source={{ uri: item.image }} style={styles.icon} />
           <View style={{ flex: 1 }}>
             <Text style={styles.assetName}>{item.name}</Text>
@@ -95,12 +109,14 @@ const CryptoCard = ({
           <View style={styles.coinStats}>
             <Text style={styles.coinPrice}>
               $
-              {item.current_price < 0.01
-                ? item.current_price.toFixed(6)
-                : item.current_price.toLocaleString(undefined, {
+              {typeof item.current_price === "number"
+                ? item.current_price < 0.01
+                  ? item.current_price.toFixed(6)
+                  : item.current_price.toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 6,
-                  })}
+                  })
+                : "N/A"}
             </Text>
             <View
               style={[
@@ -114,8 +130,9 @@ const CryptoCard = ({
                   isPositive ? styles.positiveText : styles.negativeText,
                 ]}
               >
-                {isPositive ? "+" : ""}
-                {item.price_change_percentage_24h?.toFixed(2)}%
+                {!isNaN(changePercent)
+                  ? `${isPositive ? "+" : ""}${changePercent.toFixed(2)}%`
+                  : "N/A"}
               </Text>
             </View>
           </View>
@@ -125,7 +142,15 @@ const CryptoCard = ({
   );
 };
 
-export default React.memo(CryptoCard);
+export default React.memo(CryptoCard, (prev, next) => {
+  return (
+    prev.item.id === next.item.id &&
+    prev.item.current_price === next.item.current_price &&
+    prev.item.priceChangePercent === next.item.priceChangePercent &&
+    prev.isFavorite === next.isFavorite &&
+    prev.index === next.index
+  );
+});
 
 const styles = StyleSheet.create({
   assetCard: {

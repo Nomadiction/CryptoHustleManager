@@ -1,3 +1,4 @@
+// backend/controllers/cryptoController.js
 const axios = require("axios");
 const NodeCache = require("node-cache");
 
@@ -17,24 +18,25 @@ async function getCryptoPrices(req, res) {
   }
 
   try {
-    const response = await axios.get(
-      `https://api.coingecko.com/api/v3/simple/price`,
+    const marketData = await axios.get(
+      `https://api.coingecko.com/api/v3/coins/markets`,
       {
         params: {
+          vs_currency: "usd",
           ids: supportedCoins.join(","),
-          vs_currencies: "usd",
-          include_24hr_change: true,
+          include_24hr_change: true
         },
       }
     );
 
-    const formatted = Object.entries(response.data).reduce((acc, [key, value]) => {
-      acc[key] = {
-        price: value.usd,
-        priceChangePercent: value.usd_24h_change.toFixed(2),
-      };
-      return acc;
-    }, {});
+    const formatted = marketData.data.map((coin) => ({
+      id: coin.id,
+      name: coin.name,
+      symbol: coin.symbol,
+      image: coin.image,
+      current_price: coin.current_price,
+      priceChangePercent: coin.price_change_percentage_24h?.toFixed(2),
+    }));
 
     cryptoCache.set("cryptoPrices", formatted);
     res.json(formatted);
