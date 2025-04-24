@@ -1,27 +1,33 @@
 // backend/server.js
 
+// Определение локального IP и порта
+require("./utils/getLocalIp");
+
+// Загрузка переменных из окружение среды
+require("dotenv").config();
+
 const express = require("express");
+const http = require("http");
 const cors = require("cors");
-require("dotenv").config();  
+
 const cryptoRoutes = require("./routes/cryptoRoutes");
+const { setupWebSocket } = require("./services/wsHandler");
 
 const app = express();
 app.use(cors());
 
 const PORT = process.env.PORT;
-const apiUrl = process.env.API_URL;  
+const apiUrl = process.env.API_URL;
 
 // Роуты
 app.use("/api/crypto", cryptoRoutes);
+app.get("/api/config", (req, res) => res.json({ apiUrl }));
 
-// Endpoint для клиента с адресом API
-app.get("/api/config", (req, res) => {
-  res.json({
-    apiUrl,  
-  });
-});
+const server = http.createServer(app);
 
-// Запуск сервера
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`✅ Сервер работает с доменом: ${apiUrl}`);
+// Подключаем WebSocket-обработчик
+setupWebSocket(server);
+
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`✅ Сервер запущен: ${apiUrl}`);
 });

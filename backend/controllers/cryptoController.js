@@ -1,15 +1,14 @@
 // backend/controllers/cryptoController.js
 
 const axios = require("axios");
-const NodeCache = require("node-cache");
+// Убираем создание нового кэша — теперь импортируем готовый общий кэш
 const {
   supportedCoins,
-  convertToBinanceSymbol,
-  generateSymbolMapFromCache
+  convertToBinanceSymbol
 } = require("../utils/coinUtils");
 
-// Создаем кэш с TTL 60 секунд
-const cryptoCache = new NodeCache({ stdTTL: 60 });
+// Импорт общего кэша из воркера
+const cryptoCache = require("../services/cryptoWorker");
 
 // Ключ для хранения общего массива в кэше
 const CACHE_KEY = "coinData";
@@ -45,10 +44,10 @@ async function getCryptoPrices(req, res) {
       return entry;
     });
 
-    // Сохраняем массив целиком и обновляем символы
+    // Сохраняем массив целиком
     cryptoCache.set(CACHE_KEY, formatted);
-    generateSymbolMapFromCache(formatted);
 
+    // ⚠️ Символы теперь формируются в воркере, не здесь!
     return res.json(formatted);
   } catch (err) {
     console.warn("⚠️ Ошибка CoinGecko. Пробуем Binance + кэш...");
@@ -73,7 +72,7 @@ async function getCryptoPrices(req, res) {
           current_price: parseFloat(binanceCoin.lastPrice),
           priceChangePercent: parseFloat(binanceCoin.priceChangePercent).toFixed(2),
         };
-      }).filter(Boolean); // убираем null
+      }).filter(Boolean); // Убираем null
 
       // Проверяем, есть ли хоть что-то в fallback
       if (fallback.length === 0) throw new Error("Нет данных ни в кэше, ни от Binance");
@@ -81,9 +80,15 @@ async function getCryptoPrices(req, res) {
       return res.json(fallback);
     } catch (fallbackErr) {
       console.error("❌ Ошибка Binance fallback:", fallbackErr.message);
+
+      // Последняя попытка — достать полностью сохранённый массив из кэша
+      const cachedFallback = cryptoCache.get(CACHE_KEY);
+      if (cachedFallback) return res.json(cachedFallback);
+
       return res.status(500).json({ error: "Все источники данных недоступны" });
     }
   }
 }
 
 module.exports = { getCryptoPrices };
+

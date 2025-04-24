@@ -1,4 +1,4 @@
-// backend/services/getLocalIP.js
+// backend/utils/getLocalIp.js
 
 const fs = require("fs");
 const os = require("os");

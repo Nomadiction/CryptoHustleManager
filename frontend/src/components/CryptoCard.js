@@ -1,3 +1,5 @@
+// frontend/components/CryptoCard.js
+
 import React, { useEffect, useRef } from "react";
 import {
   View,
@@ -42,14 +44,14 @@ const CryptoCard = ({
     onToggleFavorite(item.id, true);
     setTimeout(() => {
       swipeableRef.current?.close();
-    }, 200);
+    }, 125);
   };
 
   const handleLeftSwipe = () => {
     onToggleFavorite(item.id, false);
     setTimeout(() => {
       swipeableRef.current?.close();
-    }, 200);
+    }, 25);
   };
 
   const handleCardPress = () => {

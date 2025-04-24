@@ -11,12 +11,15 @@ const supportedCoins = [
   
   function generateSymbolMapFromCache(cacheData) {
     dynamicMap = {}; // очищаем
+  
+    if (!Array.isArray(cacheData)) return;
+  
     cacheData.forEach(coin => {
-      if (coin.id && coin.symbol) {
+      if (coin?.id && coin?.symbol) {
         dynamicMap[coin.id] = `${coin.symbol.toUpperCase()}USDT`;
       }
     });
-  }
+  }  
   
   function convertToBinanceSymbol(coinId) {
     return dynamicMap[coinId] || null;
@@ -25,6 +28,7 @@ const supportedCoins = [
   module.exports = {
     supportedCoins,
     convertToBinanceSymbol,
-    generateSymbolMapFromCache
+    generateSymbolMapFromCache,
+    __internalSymbolMap: () => dynamicMap  // read-only доступ
   };
   
