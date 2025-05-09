@@ -1,13 +1,15 @@
+// frontend/screens/HomeScreen.js
+
 import React, { useState } from "react";
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Image, 
-  TextInput, 
-  FlatList, 
-  ScrollView, 
-  TouchableOpacity 
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TextInput,
+  FlatList,
+  ScrollView,
+  TouchableOpacity
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -25,130 +27,113 @@ const favoriteCoinsData = [
   { id: 'bnb', name: 'BNB', price: 345.67, change: 0.56 },
 ];
 
-const HeaderComponent = ({ searchText, setSearchText }) => {
-  return (
-    <View>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.profileSection}>
-          <Image 
-            source={{ uri: 'https://via.placeholder.com/40' }} 
-            style={styles.profilePic} 
-          />
-          <Text style={styles.profileName}>Richard Cooper</Text>
-        </View>
-        <TouchableOpacity style={styles.notification}>
-          <MaterialCommunityIcons name="bell" size={25} color="#fff" />
-          <View style={styles.notificationBadge} />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.divider} />
-
-      {/* Секция баланса */}
-      <View style={styles.earningsWrapper}>
-        <LinearGradient
-          colors={["#1a305e", "#162f5b"]}
-          style={styles.earningsContainer}
-        >
-          <View style={styles.totalBalance}>
-            <Text style={styles.balanceLabel}>Total Balance</Text>
-            <Text style={styles.balanceValue}>$17,258.13</Text>
-          </View>
-          <View style={styles.allTime}>
-            <Text style={styles.allTimeText}>
-              <Text style={styles.allTimePositive}>+4,972.2</Text> • 37.4%
-            </Text>
-            <Text style={styles.allTimeLabel}>all time</Text>
-          </View>
-        </LinearGradient>
-      </View>
-
-      {/* Слайдер кошельков */}
-      <View style={styles.sliderWrapper}>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          contentContainerStyle={styles.slider}
-        >
-          {walletsData.map(wallet => (
-            <LinearGradient
-              key={wallet.id}
-              colors={["#182547", "#122956"]}
-              style={styles.walletCard}
-            >
-              <Text style={styles.walletTitle}>{wallet.name}</Text>
-              <Text style={styles.walletBalance}>${wallet.balance.toFixed(2)}</Text>
-              <Text style={styles.walletEarnings}>+${wallet.earnings.toFixed(2)}</Text>
-            </LinearGradient>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Экспериментальная поисковая строка */}
-      <View style={styles.searchWrapper}>
-        <MaterialIcons name="search" size={20} color="#fff" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Поиск криптовалют..."
-          placeholderTextColor="#AAB7C4"
-          value={searchText}
-          onChangeText={setSearchText}
-          clearButtonMode="always"
-        />
-        <TouchableOpacity>
-          <MaterialIcons name="clear" size={20} color="#fff" style={styles.clearIcon} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Заголовок секции избранных криптовалют */}
-      <View style={styles.favCoinsHeader}>
-        <Text style={styles.favCoinsTitle}>Favorite Coins</Text>
-      </View>
+const ProfileHeader = () => (
+  <View style={styles.header}>
+    <View style={styles.profileSection}>
+      <Image source={{ uri: 'https://via.placeholder.com/40' }} style={styles.profilePic} />
+      <Text style={styles.profileName}>Richard Cooper</Text>
     </View>
-  );
-};
+    <TouchableOpacity style={styles.notification}>
+      <MaterialCommunityIcons name="bell" size={25} color="#fff" />
+      <View style={styles.notificationBadge} />
+    </TouchableOpacity>
+  </View>
+);
 
-const renderFavoriteCoin = ({ item }) => {
-  return (
-    <View style={styles.coinCard}>
-      <View style={styles.coinInfo}>
-        <View style={styles.coinIcon}>
-          <MaterialCommunityIcons name="currency-usd" size={24} color="#fff" />
-        </View>
-        <Text style={styles.coinName}>{item.name}</Text>
-      </View>
-      <View style={styles.coinStats}>
-        <Text style={styles.coinPrice}>${item.price.toFixed(2)}</Text>
-        <Text style={[
-          styles.coinChange, 
-          item.change >= 0 ? styles.positive : styles.negative
-        ]}>
-          {item.change >= 0 ? `+${item.change.toFixed(2)}%` : `${item.change.toFixed(2)}%`}
-        </Text>
-      </View>
+const BalanceCard = () => (
+  <LinearGradient colors={["#1a305e", "#162f5b"]} style={styles.earningsContainer}>
+    <View style={styles.totalBalance}>
+      <Text style={styles.balanceLabel}>Total Balance</Text>
+      <Text style={styles.balanceValue}>$17,258.13</Text>
     </View>
-  );
-};
+    <View style={styles.allTime}>
+      <Text style={styles.allTimeText}><Text style={styles.allTimePositive}>+4,972.2</Text> • 37.4%</Text>
+      <Text style={styles.allTimeLabel}>all time</Text>
+    </View>
+  </LinearGradient>
+);
+
+const WalletSlider = () => (
+  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.slider}>
+    {walletsData.map(wallet => (
+      <LinearGradient key={wallet.id} colors={["#182547", "#122956"]} style={styles.walletCard}>
+        <Text style={styles.walletTitle}>{wallet.name}</Text>
+        <Text style={styles.walletBalance}>${wallet.balance.toFixed(2)}</Text>
+        <Text style={styles.walletEarnings}>+${wallet.earnings.toFixed(2)}</Text>
+      </LinearGradient>
+    ))}
+  </ScrollView>
+);
+
+const SearchBar = ({ searchText, setSearchText }) => (
+  <View style={styles.searchWrapper}>
+    <MaterialIcons name="search" size={20} color="#fff" style={styles.searchIcon} />
+    <TextInput
+      style={styles.searchInput}
+      placeholder="Поиск криптовалют..."
+      placeholderTextColor="#AAB7C4"
+      value={searchText}
+      onChangeText={setSearchText}
+      clearButtonMode="never"
+    />
+    {searchText.length > 0 && (
+      <TouchableOpacity onPress={() => setSearchText("")}>
+        <MaterialIcons name="clear" size={20} color="#fff" style={styles.clearIcon} />
+      </TouchableOpacity>
+    )}
+  </View>
+);
+
+const FavoriteCoinCard = ({ item }) => (
+  <View style={styles.coinCard}>
+    <View style={styles.coinInfo}>
+      <View style={styles.coinIcon}>
+        <MaterialCommunityIcons name="currency-usd" size={24} color="#fff" />
+      </View>
+      <Text style={styles.coinName}>{item.name}</Text>
+    </View>
+    <View style={styles.coinStats}>
+      <Text style={styles.coinPrice}>${item.price.toFixed(2)}</Text>
+      <Text style={[
+        styles.coinChange,
+        item.change >= 0 ? styles.positive : styles.negative
+      ]}>
+        {item.change >= 0 ? `+${item.change.toFixed(2)}%` : `${item.change.toFixed(2)}%`}
+      </Text>
+    </View>
+  </View>
+);
 
 const HomeScreen = () => {
   const [searchText, setSearchText] = useState("");
 
-  const filteredCoins = favoriteCoinsData.filter(coin => 
+  const filteredCoins = favoriteCoinsData.filter(coin =>
     coin.name.toLowerCase().includes(searchText.toLowerCase())
   );
 
   return (
-    <LinearGradient 
-      colors={["#0a1e44", "#162f5b"]}
-      style={styles.container}
-    >
+    <LinearGradient colors={["#0a1e44", "#162f5b"]} style={styles.container}>
       <FlatList
         data={filteredCoins}
         keyExtractor={(item) => item.id}
-        renderItem={renderFavoriteCoin}
-        ListHeaderComponent={<HeaderComponent searchText={searchText} setSearchText={setSearchText} />}
+        renderItem={({ item }) => <FavoriteCoinCard item={item} />}
+        ListHeaderComponent={(
+          <View>
+            <ProfileHeader />
+            <View style={styles.divider} />
+            <View style={styles.earningsWrapper}>
+              <BalanceCard />
+            </View>
+            <View style={styles.sliderWrapper}>
+              <WalletSlider />
+            </View>
+            <SearchBar searchText={searchText} setSearchText={setSearchText} />
+            <View style={styles.favCoinsHeader}>
+              <Text style={styles.favCoinsTitle}>Favorite Coins</Text>
+            </View>
+          </View>
+        )}
         contentContainerStyle={styles.flatListContent}
-        scrollEnabled={true}
       />
     </LinearGradient>
   );

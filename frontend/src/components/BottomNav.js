@@ -1,12 +1,31 @@
 // frontend/components/BottomNav.js
 
 import React, { useRef, useEffect } from 'react';
-import { TouchableOpacity, StyleSheet, Animated, Dimensions } from 'react-native';
+import {
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+  Dimensions,
+} from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const screenWidth = Dimensions.get('window').width;
 const tabWidth = screenWidth / 3;
+
+const getIconName = (name) => {
+  switch (name) {
+    case 'Home':
+      return 'home';
+    case 'Search':
+      return 'magnify';
+    case 'Portfolio':
+      return 'wallet';
+    default:
+      return 'help';
+  }
+};
 
 const BottomNav = ({ state, navigation }) => {
   const translateX = useRef(new Animated.Value(state.index * tabWidth)).current;
@@ -21,46 +40,48 @@ const BottomNav = ({ state, navigation }) => {
   }, [state.index]);
 
   return (
-    <LinearGradient colors={["#e2e8f0", "#f9fafb"]} style={styles.navbar}>
-      <Animated.View style={[styles.indicator, { transform: [{ translateX }] }]} />
-      {state.routes.map((route, index) => {
-        const isFocused = state.index === index;
-        const iconName =
-          route.name === 'Home'
-            ? 'home'
-            : route.name === 'Search'
-            ? 'magnify'
-            : 'wallet';
+    <SafeAreaView edges={['bottom']} style={styles.safeArea}>
+      <LinearGradient colors={["#e2e8f0", "#f9fafb"]} style={styles.navbar}>
+        <Animated.View style={[styles.indicator, { transform: [{ translateX }] }]} />
+        {state.routes.map((route, index) => {
+          const isFocused = state.index === index;
+          const iconName = getIconName(route.name);
 
-        return (
-          <TouchableOpacity
-            key={route.key}
-            onPress={() => navigation.navigate(route.name)}
-            style={styles.navItem}
-          >
-            <MaterialCommunityIcons
-              name={iconName}
-              size={28}
-              color={isFocused ? '#1f2937' : '#64748b'}
-            />
-          </TouchableOpacity>
-        );
-      })}
-    </LinearGradient>
+          return (
+            <TouchableOpacity
+              key={route.key}
+              onPress={() => navigation.navigate(route.name)}
+              style={styles.navItem}
+              accessible={true}
+              accessibilityLabel={`${route.name} tab`}
+            >
+              <MaterialCommunityIcons
+                name={iconName}
+                size={28}
+                color={isFocused ? '#1f2937' : '#64748b'}
+              />
+            </TouchableOpacity>
+          );
+        })}
+      </LinearGradient>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  navbar: {
+  safeArea: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#e2e8f0",
+    backgroundColor: 'transparent',
+  },
+  navbar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     paddingVertical: 10,
+    backgroundColor: "#e2e8f0",
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     shadowColor: "#000",
