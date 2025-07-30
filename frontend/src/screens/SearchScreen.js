@@ -1,4 +1,4 @@
-// frontend/screens/SearchScreen.js
+// frontend/src/screens/SearchScreen.js
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
@@ -13,6 +13,7 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
+  StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -20,42 +21,36 @@ import { Ionicons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import { debounce } from "lodash";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from 'expo-haptics';
 
 import CryptoCard from "../components/CryptoCard";
 import { useCryptoData } from "../hooks/useCryptoData";
 
-// Включаем LayoutAnimation на Android для плавных анимаций
+// Enable LayoutAnimation on Android for smooth animations
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-// Ключ для хранения избранных монет в AsyncStorage, позволяет настраивать сохранение данных
+// Key for storing favorite coins in AsyncStorage
 const FAVORITES_KEY = "FAVORITE_COINS";
 
-// Основной компонент экрана поиска, который управляет состояниями и анимациями
 const SearchScreen = () => {
-  // Используем хук для получения данных о криптовалютах и состояния загрузки, настраиваем источник данных
   const { cryptoData, loading } = useCryptoData();
   const navigation = useNavigation();
 
-  // Инициализируем состояния для поиска, избранных монет и отфильтрованных данных, настраиваем начальные значения
   const [query, setQuery] = useState("");
   const [favorites, setFavorites] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
-  const [cryptoList, setCryptoList] = useState([...cryptoData]);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
-  // Создаем ссылки для управления списком и анимациями, настраиваем начальные значения анимаций
   const listRef = useRef(null);
-  const scrollRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateYAnim = useRef(new Animated.Value(20)).current;
-  const opacityFab = useRef(new Animated.Value(0)).current;
-  const scaleFab = useRef(new Animated.Value(0)).current;
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const prevScrollY = useRef(0);
-  const searchBarAnim = useRef(new Animated.Value(1)).current;
 
-  // Эффект для загрузки избранных монет из AsyncStorage при монтировании компонента, настраиваем асинхронное поведение
+  // Load favorite coins
   useEffect(() => {
     const loadFavorites = async () => {
       const saved = await AsyncStorage.getItem(FAVORITES_KEY);
@@ -64,24 +59,24 @@ const SearchScreen = () => {
     loadFavorites();
   }, []);
 
-  // Эффект для сохранения избранных монет в AsyncStorage при их изменении, настраиваем синхронизацию данных
+  // Save favorite coins
   useEffect(() => {
     AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
   }, [favorites]);
 
-  // Эффект для анимации появления данных после загрузки, настраиваем параметры анимации
+  // Entrance animation
   useEffect(() => {
     if (!loading) {
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 500,
+          duration: 600,
           easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(translateYAnim, {
           toValue: 0,
-          duration: 500,
+          duration: 600,
           easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }),
@@ -89,142 +84,80 @@ const SearchScreen = () => {
     }
   }, [loading]);
 
-  // Функция для фильтрации данных на основе введенного текста, настраиваем параметры фильтрации
+  // Filter data
   const filterData = useCallback(
     debounce((text) => {
       const input = text.toLowerCase();
-      const filtered = cryptoData.filter(
+      let filtered = cryptoData.filter(
         (item) =>
           item.name.toLowerCase().includes(input) ||
           item.symbol.toLowerCase().includes(input)
       );
 
+      // If "favorites only" filter is enabled
+      if (showFavoritesOnly) {
+        filtered = filtered.filter((item) => favorites.includes(item.id));
+      }
+
+      // Sort: favorites first, then others
       const pinned = filtered
         .filter((item) => favorites.includes(item.id))
         .sort((a, b) => favorites.indexOf(a.id) - favorites.indexOf(b.id));
       const others = filtered.filter((item) => !favorites.includes(item.id));
+      
       setFilteredData([...pinned, ...others]);
     }, 200),
-    [cryptoData, favorites]
+    [cryptoData, favorites, showFavoritesOnly]
   );
 
-  // Эффект для фильтрации данных при изменении запроса или данных, настраиваем зависимости
   useEffect(() => {
     filterData(query);
-  }, [query, cryptoData, favorites, filterData]);
+  }, [query, cryptoData, favorites, showFavoritesOnly, filterData]);
 
-  // Функция для добавления или удаления монеты из избранного, настраиваем анимацию и обновление состояния
+  // Toggle favorite
   const toggleFavorite = (id) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setFavorites((prev) =>
       prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
     );
   };
 
-  // Функции для анимации кнопки прокрутки вверх, настраиваем параметры анимации
-  const runShowFab = () => {
-    Animated.parallel([
-      Animated.timing(opacityFab, {
-        toValue: 1,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleFab, {
-        toValue: 1,
-        friction: 5,
-        tension: 60,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  };
-
-  const runHideFab = () => {
-    Animated.parallel([
-      Animated.timing(opacityFab, {
-        toValue: 0,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleFab, {
-        toValue: 0,
-        friction: 5,
-        tension: 60,
-        useNativeDriver: true,
-      }),
-    ]).start(() => setShowScrollToTop(false));
-  };
-
-  // Обработчик прокрутки для управления видимостью кнопки прокрутки и анимацией строки поиска, настраиваем пороги и анимации
+  // Scroll handler
   const handleScroll = (e) => {
     const y = e.nativeEvent.contentOffset.y;
 
     if (y > 300) {
       if (!showScrollToTop) {
         setShowScrollToTop(true);
-        runShowFab();
       }
     } else if (showScrollToTop) {
-      runHideFab();
-    }
-
-    const delta = y - prevScrollY.current;
-    const shouldHide = delta > 15;
-    const shouldShow = delta < -15;
-
-    if (shouldHide) {
-      Animated.timing(searchBarAnim, {
-        toValue: 0,
-        duration: 400,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }).start();
-    } else if (shouldShow) {
-      Animated.timing(searchBarAnim, {
-        toValue: 1,
-        duration: 400,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }).start();
+      setShowScrollToTop(false);
     }
 
     prevScrollY.current = y;
   };
 
-  // Функция для перехода на экран с деталями монеты, настраиваем параметры навигации
   const handlePress = (asset) =>
     navigation.navigate("CoinDetail", { coinId: asset.id });
 
-  // Функция для очистки строки поиска, настраиваем сброс состояния
   const clearQuery = () => setQuery("");
 
-  // Функция для прокрутки списка вверх, настраиваем параметры прокрутки
   const scrollToTop = () =>
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
 
-  // Функции для перемещения элемента в списке избранных, настраиваем логику перемещения
-  const moveItem = (id, direction) => {
-    const index = favorites.findIndex(item => item === id);
-    if (index < 0) return;
-
-    const newIndex = direction === "up" ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= favorites.length) return;
-
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-
-    const newFavorites = [...favorites];
-    const [movedItem] = newFavorites.splice(index, 1);
-    newFavorites.splice(newIndex, 0, movedItem);
-    setFavorites(newFavorites);
+  const toggleFavoritesFilter = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowFavoritesOnly(!showFavoritesOnly);
   };
 
-  const handleMoveUp = (id) => moveItem(id, "up");
-  const handleMoveDown = (id) => moveItem(id, "down");
-
-  // Рендеринг строки поиска, настраиваем внешний вид и поведение
+  // Render search bar
   const renderSearchBar = () => (
     <View style={styles.searchWrapper}>
       <View style={styles.searchBar}>
-        <Ionicons name="search" size={20} color="#94a3b8" style={styles.icon} />
+        <View style={styles.searchIconContainer}>
+          <Ionicons name="search" size={18} color="#94a3b8" />
+        </View>
         <TextInput
           placeholder="Search coins or symbols..."
           placeholderTextColor="#94a3b8"
@@ -232,37 +165,108 @@ const SearchScreen = () => {
           value={query}
           onChangeText={setQuery}
           autoCapitalize="none"
-          clearButtonMode="always"
+          clearButtonMode="never"
         />
         {query.length > 0 && (
-          <TouchableOpacity onPress={clearQuery}>
-            <Ionicons name="close-circle" size={22} color="#94a3b8" style={styles.icon} />
+          <TouchableOpacity onPress={clearQuery} style={styles.clearButton}>
+            <Ionicons name="close-circle" size={18} color="#94a3b8" />
           </TouchableOpacity>
         )}
       </View>
     </View>
   );
 
-  // Основной рендеринг компонента, включая список криптовалют и кнопку прокрутки вверх, настраиваем внешний вид и поведение
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      {loading ? (
-        <ActivityIndicator
-          size="large"
-          color="#10b981"
-          style={styles.loader}
-        />
-      ) : (
-        <Animated.View
-          style={{
-            flex: 1,
-            opacity: fadeAnim,
-            transform: [{ translateY: translateYAnim }],
-          }}
+  // Render filters
+  const renderFilters = () => (
+    <View style={styles.filtersContainer}>
+      <TouchableOpacity
+        style={[
+          styles.filterButton,
+          showFavoritesOnly && styles.filterButtonActive
+        ]}
+        onPress={toggleFavoritesFilter}
+      >
+        <LinearGradient
+          colors={showFavoritesOnly ? ['#8b5cf6', '#7c3aed'] : ['rgba(139, 92, 246, 0.1)', 'rgba(124, 58, 237, 0.1)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[
+            styles.filterButtonGradient,
+            { borderColor: showFavoritesOnly ? 'transparent' : '#8b5cf6' }
+          ]}
         >
-          {filteredData.length === 0 ? (
-            <Text style={styles.emptyText}>No coins found</Text>
-          ) : (
+          <Ionicons 
+            name="star" 
+            size={16} 
+            color={showFavoritesOnly ? "#fff" : "#8b5cf6"} 
+          />
+          <Text style={[
+            styles.filterText,
+            showFavoritesOnly && styles.filterTextActive
+          ]}>
+            Favorites ({favorites.length})
+          </Text>
+        </LinearGradient>
+      </TouchableOpacity>
+      
+      <View style={styles.statsContainer}>
+        <LinearGradient
+          colors={['rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.05)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.statsGradient}
+        >
+          <Text style={styles.statsText}>
+            {filteredData.length} coins
+          </Text>
+        </LinearGradient>
+      </View>
+    </View>
+  );
+
+  // Render empty state
+  const renderEmptyState = () => (
+    <View style={styles.emptyContainer}>
+      <LinearGradient
+        colors={['rgba(100, 116, 139, 0.1)', 'rgba(71, 85, 105, 0.1)']}
+        style={styles.emptyIconContainer}
+      >
+        <Ionicons name="search-outline" size={48} color="#64748b" />
+      </LinearGradient>
+      <Text style={styles.emptyTitle}>
+        {showFavoritesOnly ? "No favorite coins" : "No coins found"}
+      </Text>
+      <Text style={styles.emptySubtitle}>
+        {showFavoritesOnly 
+          ? "Add coins to favorites to see them here"
+          : "Try changing your search query"
+        }
+      </Text>
+    </View>
+  );
+
+  return (
+    <LinearGradient colors={["#0f172a", "#1e293b"]} style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
+      <SafeAreaView style={styles.safeArea}>
+        {loading ? (
+          <View style={styles.loaderContainer}>
+            <LinearGradient
+              colors={['rgba(139, 92, 246, 0.1)', 'rgba(124, 58, 237, 0.1)']}
+              style={styles.loaderBackground}
+            >
+              <ActivityIndicator size="large" color="#8b5cf6" />
+            </LinearGradient>
+            <Text style={styles.loaderText}>Loading data...</Text>
+          </View>
+        ) : (
+          <Animated.View
+            style={{
+              flex: 1,
+              opacity: fadeAnim,
+              transform: [{ translateY: translateYAnim }],
+            }}
+          >
             <FlashList
               ref={listRef}
               data={filteredData}
@@ -274,89 +278,231 @@ const SearchScreen = () => {
                   onPress={handlePress}
                   onToggleFavorite={toggleFavorite}
                   isFavorite={favorites.includes(item.id)}
-                  onMoveUp={() => handleMoveUp(item.id)}
-                  onMoveDown={() => handleMoveDown(item.id)}
-                  simultaneousHandlers={scrollRef}
+                  simultaneousHandlers={listRef}
                 />
               )}
-              ListHeaderComponent={renderSearchBar}
+              ListHeaderComponent={
+                <View>
+                  {renderSearchBar()}
+                  {renderFilters()}
+                </View>
+              }
+              ListEmptyComponent={renderEmptyState()}
               estimatedItemSize={92}
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
               onScroll={handleScroll}
               scrollEventThrottle={16}
             />
-          )}
 
-          <Animated.View
-            pointerEvents={showScrollToTop ? "auto" : "none"}
-            style={[
-              styles.fab,
-              {
-                opacity: opacityFab,
-                transform: [{ scale: scaleFab }],
-              },
-            ]}
-          >
-            <TouchableOpacity onPress={scrollToTop}>
-              <Ionicons name="arrow-up" size={24} color="#1f2937" />
-            </TouchableOpacity>
+            {showScrollToTop && (
+              <Animated.View
+                style={[
+                  styles.scrollToTopButton,
+                  {
+                    opacity: fadeAnim,
+                    transform: [{ scale: fadeAnim }]
+                  }
+                ]}
+              >
+                <TouchableOpacity 
+                  style={styles.scrollToTopTouchable}
+                  onPress={scrollToTop}
+                >
+                  <LinearGradient
+                    colors={['#8b5cf6', '#7c3aed']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.scrollToTopGradient}
+                  >
+                    <Ionicons name="arrow-up" size={20} color="#fff" />
+                  </LinearGradient>
+                </TouchableOpacity>
+              </Animated.View>
+            )}
           </Animated.View>
-        </Animated.View>
-      )}
-    </SafeAreaView>
+        )}
+      </SafeAreaView>
+    </LinearGradient>
   );
 };
 
 export default SearchScreen;
 
-// Экспортируем компонент экрана поиска, настраиваем оптимизацию рендеринга
-
-// Стили для компонента, включая стили для анимаций и различных состояний
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#ffffff" },
-  loader: { marginTop: 40 },
+  container: {
+    flex: 1,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loaderBackground: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  loaderText: {
+    fontSize: 16,
+    color: '#94a3b8',
+    fontWeight: '500',
+  },
   searchWrapper: {
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
-    backgroundColor: "#ffffff",
+    paddingTop: 20,
+    paddingBottom: 16,
   },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#e2e8f0",
+    backgroundColor: '#1e293b',
     borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     shadowColor: "#000",
-    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  searchIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(148, 163, 184, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: "#f8fafc",
+    fontWeight: '500',
+    paddingVertical: 6,
+  },
+  clearButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(148, 163, 184, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filtersContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  filterButton: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  filterButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#10b981',
+  },
+  filterButtonActive: {
+    shadowColor: '#8b5cf6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
   },
-  icon: { marginRight: 10 },
-  input: { flex: 1, fontSize: 16, color: "#1f2937" },
-  clearButton: { marginLeft: 6 },
-  listContent: { paddingBottom: 80 },
-  emptyText: {
-    textAlign: "center",
-    marginTop: 50,
-    fontSize: 16,
-    color: "#9ca3af",
+  filterText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8b5cf6',
+    marginLeft: 6,
   },
-  fab: {
-    position: "absolute",
-    right: 30,
-    bottom: 90,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#e2e8f0",
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
+  filterTextActive: {
+    color: '#fff',
+  },
+  statsContainer: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  statsGradient: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  statsText: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontWeight: '600',
+  },
+  listContent: {
+    paddingBottom: 100,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    paddingTop: 60,
+  },
+  emptyIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#f8fafc',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: '#94a3b8',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  scrollToTopButton: {
+    position: 'absolute',
+    right: 20,
+    bottom: 100,
+  },
+  scrollToTopTouchable: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#8b5cf6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  scrollToTopGradient: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

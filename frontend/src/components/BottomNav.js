@@ -1,18 +1,9 @@
 // frontend/components/BottomNav.js
 
-import React, { useRef, useEffect } from 'react';
-import {
-  TouchableOpacity,
-  StyleSheet,
-  Animated,
-  Dimensions,
-} from 'react-native';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-const screenWidth = Dimensions.get('window').width;
-const tabWidth = screenWidth / 3;
 
 const getIconName = (name) => {
   switch (name) {
@@ -20,90 +11,136 @@ const getIconName = (name) => {
       return 'home';
     case 'Search':
       return 'magnify';
+    case 'News':
+      return 'newspaper';
     case 'Portfolio':
       return 'wallet';
     default:
-      return 'help';
+      return 'circle';
   }
 };
 
-const BottomNav = ({ state, navigation }) => {
-  const translateX = useRef(new Animated.Value(state.index * tabWidth)).current;
+const BottomNav = ({ state, descriptors, navigation }) => {
+  const focusedOptions = descriptors[state.routes[state.index].key].options;
 
-  useEffect(() => {
-    Animated.spring(translateX, {
-      toValue: state.index * tabWidth,
-      useNativeDriver: true,
-      speed: 12,
-      bounciness: 8,
-    }).start();
-  }, [state.index]);
+  if (focusedOptions.tabBarVisible === false) {
+    return null;
+  }
 
   return (
-    <SafeAreaView edges={['bottom']} style={styles.safeArea}>
-      <LinearGradient colors={["#e2e8f0", "#f9fafb"]} style={styles.navbar}>
-        <Animated.View style={[styles.indicator, { transform: [{ translateX }] }]} />
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#1e293b', '#0f172a']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.gradientContainer}
+      >
         {state.routes.map((route, index) => {
+          const { options } = descriptors[route.key];
+          const label =
+            options.tabBarLabel !== undefined
+              ? options.tabBarLabel
+              : options.title !== undefined
+              ? options.title
+              : route.name;
+
           const isFocused = state.index === index;
           const iconName = getIconName(route.name);
+
+          const onPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            });
+
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate(route.name);
+            }
+          };
+
+          const onLongPress = () => {
+            navigation.emit({
+              type: 'tabLongPress',
+              target: route.key,
+            });
+          };
 
           return (
             <TouchableOpacity
               key={route.key}
-              onPress={() => navigation.navigate(route.name)}
-              style={styles.navItem}
-              accessible={true}
-              accessibilityLabel={`${route.name} tab`}
+              accessibilityRole="button"
+              accessibilityState={isFocused ? { selected: true } : {}}
+              accessibilityLabel={options.tabBarAccessibilityLabel}
+              testID={options.tabBarTestID}
+              onPress={onPress}
+              onLongPress={onLongPress}
+              style={styles.tabButton}
             >
-              <MaterialCommunityIcons
-                name={iconName}
-                size={28}
-                color={isFocused ? '#1f2937' : '#64748b'}
-              />
+              <View style={[styles.iconContainer, isFocused && styles.iconContainerActive]}>
+                <MaterialCommunityIcons
+                  name={iconName}
+                  size={24}
+                  color={isFocused ? '#8b5cf6' : '#64748b'}
+                />
+              </View>
+              <Text style={[styles.tabLabel, { color: isFocused ? '#8b5cf6' : '#64748b' }]}>
+                {label}
+              </Text>
             </TouchableOpacity>
           );
         })}
       </LinearGradient>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'transparent',
+    height: 70,
+    paddingBottom: 0,
   },
-  navbar: {
+  gradientContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingVertical: 10,
-    backgroundColor: "#e2e8f0",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    shadowColor: "#000",
+    height: 70,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    overflow: 'hidden',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 6,
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 8,
+    borderTopWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  navItem: {
-    alignItems: 'center',
+  tabButton: {
+    flex: 1,
     justifyContent: 'center',
-    width: tabWidth,
-    height: 55,
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingBottom: 8,
   },
-  indicator: {
-    position: 'absolute',
-    width: 50,
-    height: 4,
-    backgroundColor: '#1f2937',
-    borderRadius: 2,
-    bottom: 6,
-    left: (tabWidth - 50) / 2,
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  iconContainerActive: {
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });
 

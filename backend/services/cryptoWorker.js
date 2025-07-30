@@ -1,29 +1,23 @@
-// backend/pipe/cryptoWorker.js
-
 const axios = require("axios");
 const NodeCache = require("node-cache");
-const { supportedCoins, generateSymbolMapFromCache } = require("../utils/coinUtils");
+const { generateSymbolMapFromCache } = require("../utils/coinUtils");
 
-// Создаём общий кэш с TTL = 120 секунд (2 минуты)
-// Этот кэш будет использоваться и в контроллере через module.exports
 const cryptoCache = new NodeCache({ stdTTL: 120 });
-
-// Ключ для хранения всего массива монет
 const CACHE_KEY = "coinData";
 
-// Основная функция обновления кэша криптовалют
 async function updateCryptoCache() {
   try {
-    // Получаем данные с CoinGecko по всем поддерживаемым монетам
     const response = await axios.get("https://api.coingecko.com/api/v3/coins/markets", {
       params: {
         vs_currency: "usd",
-        ids: supportedCoins.join(","), // Список ID монет
-        include_24hr_change: true     // Включаем % изменения за 24ч
+        price_change_percentage: "24h",
+        sparkline: true,
+        order: "market_cap_desc",
+        per_page: 50,
+        page: 1
       }
     });
 
-    // Преобразуем и кэшируем каждую монету отдельно
     const formatted = response.data.map((coin) => {
       const entry = {
         id: coin.id,
@@ -32,15 +26,35 @@ async function updateCryptoCache() {
         image: coin.image,
         current_price: coin.current_price,
         priceChangePercent: coin.price_change_percentage_24h?.toFixed(2),
+        price_change_percentage_24h: coin.price_change_percentage_24h,
+        price_change_24h: coin.price_change_24h,
+        market_cap: coin.market_cap,
+        market_cap_change_24h: coin.market_cap_change_24h,
+        market_cap_change_percentage_24h: coin.market_cap_change_percentage_24h,
+        total_volume: coin.total_volume,
+        high_24h: coin.high_24h,
+        low_24h: coin.low_24h,
+        total_supply: coin.total_supply,
+        circulating_supply: coin.circulating_supply,
+        max_supply: coin.max_supply,
+        market_cap_rank: coin.market_cap_rank,
+        fully_diluted_valuation: coin.fully_diluted_valuation,
+        ath: coin.ath,
+        ath_change_percentage: coin.ath_change_percentage,
+        ath_date: coin.ath_date,
+        atl: coin.atl,
+        atl_change_percentage: coin.atl_change_percentage,
+        atl_date: coin.atl_date,
+        roi: coin.roi,
+        last_updated: coin.last_updated,
+        sparkline_in_7d: coin.sparkline_in_7d?.price || []
       };
-      cryptoCache.set(coin.id, entry); // Кэш по ID монеты
+
+      cryptoCache.set(coin.id, entry);
       return entry;
     });
 
-    // Сохраняем весь массив монет под единым ключом
     cryptoCache.set(CACHE_KEY, formatted);
-
-    // Генерируем карту символов для быстрого доступа (например: BTC -> bitcoin)
     generateSymbolMapFromCache(formatted);
 
     console.log("✅ Кэш крипты успешно обновлён");
@@ -49,13 +63,7 @@ async function updateCryptoCache() {
   }
 }
 
-// ⏱ Запускаем обновление кэша каждую минуту
 setInterval(updateCryptoCache, 60 * 1000);
-
-// 🚀 Первый запуск при инициализации
 updateCryptoCache();
 
-// Экспортируем общий кэш для доступа из других модулей
 module.exports = cryptoCache;
-
-
